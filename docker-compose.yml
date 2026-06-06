@@ -1,0 +1,17 @@
+version: "3.9"
+services:
+  api:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=/app/data/copilot.db
+      - CHROMA_PATH=/app/data/chroma
+      - OFFLINE_MODE=true
+      - LOG_LEVEL=INFO
+    volumes:
+      - copilot_data:/app/data
+    restart: unless-stopped
+
+volumes:
+  copilot_data:

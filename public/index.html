@@ -1,0 +1,565 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="AI Financial Copilot — deterministic recommendations, decision tracing, and impact modeling." />
+    <title>AI Financial Copilot</title>
+    <link rel="stylesheet" href="styles.css" />
+    <style>
+      .profile-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 2rem;
+        border-radius: 8px;
+        margin-bottom: 2rem;
+      }
+      .profile-header h1 {
+        margin: 0 0 0.5rem 0;
+        font-size: 1.8rem;
+      }
+      .profile-header p {
+        margin: 0;
+        opacity: 0.9;
+      }
+      .profile-tabs {
+        display: flex;
+        gap: 1rem;
+        margin-bottom: 2rem;
+        border-bottom: 1px solid #e0e0e0;
+      }
+      .profile-tab {
+        padding: 1rem;
+        background: none;
+        border: none;
+        cursor: pointer;
+        font-size: 1rem;
+        color: #666;
+        border-bottom: 3px solid transparent;
+        transition: all 0.2s;
+      }
+      .profile-tab.is-active {
+        color: #667eea;
+        border-bottom-color: #667eea;
+      }
+      .profile-tab:hover {
+        color: #667eea;
+      }
+      .tab-content {
+        display: none;
+      }
+      .tab-content.is-active {
+        display: block;
+      }
+      .field-row {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 1.5rem;
+      }
+      .field-row.full {
+        grid-template-columns: 1fr;
+      }
+      .countries-list {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+      }
+      .currency-select {
+        max-width: 200px;
+      }
+      .collection-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
+        margin-top: 2rem;
+      }
+      .collection-header h3 {
+        margin: 0;
+        font-size: 1.1rem;
+        color: #333;
+      }
+      .quick-stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 1rem;
+        margin-bottom: 2rem;
+      }
+      .stat-box {
+        background: #f5f5f5;
+        padding: 1rem;
+        border-radius: 6px;
+        text-align: center;
+      }
+      .stat-value {
+        font-size: 1.5rem;
+        font-weight: bold;
+        color: #667eea;
+      }
+      .stat-label {
+        font-size: 0.85rem;
+        color: #666;
+        margin-top: 0.5rem;
+      }
+      .action-buttons {
+        display: flex;
+        gap: 1rem;
+        margin-top: 2rem;
+        flex-wrap: wrap;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="brand">
+          <div class="brand-title">💰 AI Financial Copilot</div>
+          <div class="brand-subtitle">Deterministic Recommendations</div>
+        </div>
+
+        <div class="sidebar-section">
+          <label class="field-label" for="userId">User ID</label>
+          <div class="row">
+            <input id="userId" class="input" type="text" value="demo-user" autocomplete="off" />
+            <button id="btnSetUser" class="btn btn-primary" type="button">Set</button>
+          </div>
+          <div class="meta" id="activeUserMeta"></div>
+        </div>
+
+        <nav class="nav">
+          <button class="nav-item is-active" data-route="profile" type="button">👤 Profile</button>
+          <button class="nav-item" data-route="dashboard" type="button">📊 Dashboard</button>
+          <button class="nav-item" data-route="recommendations" type="button">🎯 Recommendations</button>
+          <button class="nav-item" data-route="opportunities" type="button">🏦 Opportunities</button>
+          <button class="nav-item" data-route="knowledge" type="button">📚 Knowledge</button>
+          <button class="nav-item" data-route="query" type="button">❓ Query</button>
+          <button class="nav-item" data-route="history" type="button">📜 History</button>
+        </nav>
+
+        <div class="sidebar-footer">
+          <div class="meta">
+            <div class="meta-row">
+              <span class="meta-key">Request ID</span>
+              <span class="meta-value" id="lastRequestId">—</span>
+            </div>
+            <div class="meta-row">
+              <span class="meta-key">API status</span>
+              <span class="meta-value" id="apiStatus">—</span>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <main class="main">
+        <header class="topbar">
+          <div class="topbar-title" id="viewTitle">Profile</div>
+          <div class="topbar-actions">
+            <button id="btnRefresh" class="btn btn-secondary" type="button">Refresh</button>
+          </div>
+        </header>
+
+        <div class="content">
+          <!-- PROFILE VIEW (primary) -->
+          <section class="view" data-view="profile">
+            <div class="profile-header">
+              <h1 id="profileUserName">Your Financial Profile</h1>
+              <p id="profileUserStatus">Create or update your financial information</p>
+            </div>
+
+            <div class="card">
+              <div class="profile-tabs">
+                <button class="profile-tab is-active" data-tab="basics" type="button">Basics</button>
+                <button class="profile-tab" data-tab="cashflow" type="button">Cashflow</button>
+                <button class="profile-tab" data-tab="assets" type="button">Assets</button>
+                <button class="profile-tab" data-tab="liabilities" type="button">Liabilities</button>
+                <button class="profile-tab" data-tab="goals" type="button">Goals</button>
+                <button class="profile-tab" data-tab="advanced" type="button">Advanced</button>
+              </div>
+
+              <!-- Tab: Basics -->
+              <div class="tab-content is-active" data-tab="basics">
+                <h3>Location & Preferences</h3>
+                <div class="field-row">
+                  <div>
+                    <label class="field-label" for="profileCountry">Country</label>
+                    <select id="profileCountry" class="select">
+                      <option value="">-- Select country --</option>
+                      <optgroup label="North America">
+                        <option value="US">🇺🇸 United States (US)</option>
+                        <option value="CA">🇨🇦 Canada (CA)</option>
+                        <option value="MX">🇲🇽 Mexico (MX)</option>
+                      </optgroup>
+                      <optgroup label="Latin America & Caribbean">
+                        <option value="AR">🇦🇷 Argentina (AR)</option>
+                        <option value="BO">🇧🇴 Bolivia (BO)</option>
+                        <option value="BR">🇧🇷 Brazil (BR)</option>
+                        <option value="CL">🇨🇱 Chile (CL)</option>
+                        <option value="CO">🇨🇴 Colombia (CO)</option>
+                        <option value="CR">🇨🇷 Costa Rica (CR)</option>
+                        <option value="EC">🇪🇨 Ecuador (EC)</option>
+                        <option value="SV">🇸🇻 El Salvador (SV)</option>
+                        <option value="GT">🇬🇹 Guatemala (GT)</option>
+                        <option value="HN">🇭🇳 Honduras (HN)</option>
+                        <option value="NI">🇳🇮 Nicaragua (NI)</option>
+                        <option value="PA">🇵🇦 Panama (PA)</option>
+                        <option value="PY">🇵🇾 Paraguay (PY)</option>
+                        <option value="PE">🇵🇪 Peru (PE)</option>
+                        <option value="UY">🇺🇾 Uruguay (UY)</option>
+                        <option value="VE">🇻🇪 Venezuela (VE)</option>
+                      </optgroup>
+                      <optgroup label="Europe & Other">
+                        <option value="GB">🇬🇧 United Kingdom (GB)</option>
+                        <option value="EU">🇪🇺 European Union (EU)</option>
+                        <option value="AU">🇦🇺 Australia (AU)</option>
+                        <option value="JP">🇯🇵 Japan (JP)</option>
+                        <option value="CN">🇨🇳 China (CN)</option>
+                        <option value="IN">🇮🇳 India (IN)</option>
+                      </optgroup>
+                    </select>
+                  </div>
+                  <div>
+                    <label class="field-label" for="profileCurrency">Currency</label>
+                    <select id="profileCurrency" class="select currency-select">
+                      <option value="">-- Select currency --</option>
+                      <optgroup label="Major Currencies">
+                        <option value="USD">USD – US Dollar ($)</option>
+                        <option value="EUR">EUR – Euro (€)</option>
+                        <option value="GBP">GBP – British Pound (£)</option>
+                        <option value="JPY">JPY – Japanese Yen (¥)</option>
+                        <option value="CNY">CNY – Chinese Yuan (¥)</option>
+                      </optgroup>
+                      <optgroup label="Latin American Currencies">
+                        <option value="ARS">ARS – Argentine Peso ($)</option>
+                        <option value="BOB">BOB – Bolivian Boliviano (Bs.)</option>
+                        <option value="BRL">BRL – Brazilian Real (R$)</option>
+                        <option value="CLP">CLP – Chilean Peso ($)</option>
+                        <option value="COP">COP – Colombian Peso ($)</option>
+                        <option value="CRC">CRC – Costa Rican Colón (₡)</option>
+                        <option value="GTQ">GTQ – Guatemalan Quetzal (Q)</option>
+                        <option value="HNL">HNL – Honduran Lempira (L)</option>
+                        <option value="NIO">NIO – Nicaraguan Córdoba (C$)</option>
+                        <option value="PAB">PAB – Panamanian Balboa (B/.)</option>
+                        <option value="PYG">PYG – Paraguayan Guaraní (₲)</option>
+                        <option value="PEN">PEN – Peruvian Sol (S/)</option>
+                        <option value="UYU">UYU – Uruguayan Peso ($U)</option>
+                        <option value="VEF">VEF – Venezuelan Bolívar (Bs.F)</option>
+                      </optgroup>
+                      <optgroup label="Other Currencies">
+                        <option value="CAD">CAD – Canadian Dollar (C$)</option>
+                        <option value="AUD">AUD – Australian Dollar (A$)</option>
+                        <option value="INR">INR – Indian Rupee (₹)</option>
+                      </optgroup>
+                    </select>
+                  </div>
+                  <div>
+                    <label class="field-label" for="profileRisk">Risk Tolerance</label>
+                    <select id="profileRisk" class="select">
+                      <option value="low">🛡️ Low (Conservative)</option>
+                      <option value="medium" selected>⚖️ Medium (Balanced)</option>
+                      <option value="high">🚀 High (Aggressive)</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Tab: Cashflow -->
+              <div class="tab-content" data-tab="cashflow">
+                <h3>Monthly Cashflow</h3>
+                <div class="field-row">
+                  <div>
+                    <label class="field-label" for="profileIncome">Monthly Income</label>
+                    <input id="profileIncome" class="input" type="number" min="0" step="0.01" placeholder="6000" />
+                  </div>
+                  <div>
+                    <label class="field-label" for="profileExpenses">Monthly Expenses</label>
+                    <input id="profileExpenses" class="input" type="number" min="0" step="0.01" placeholder="4200" />
+                  </div>
+                </div>
+                <div id="cashflowSummary" class="quick-stats" style="margin-top: 2rem;"></div>
+              </div>
+
+              <!-- Tab: Assets -->
+              <div class="tab-content" data-tab="assets">
+                <div class="collection-header">
+                  <h3>Assets</h3>
+                  <button id="btnAddAsset" class="btn btn-secondary btn-sm" type="button">+ Add asset</button>
+                </div>
+                <div id="assetsTable"></div>
+              </div>
+
+              <!-- Tab: Liabilities -->
+              <div class="tab-content" data-tab="liabilities">
+                <div class="collection-header">
+                  <h3>Liabilities (Debts)</h3>
+                  <button id="btnAddLiability" class="btn btn-secondary btn-sm" type="button">+ Add liability</button>
+                </div>
+                <div id="liabilitiesTable"></div>
+              </div>
+
+              <!-- Tab: Goals -->
+              <div class="tab-content" data-tab="goals">
+                <div class="collection-header">
+                  <h3>Financial Goals</h3>
+                  <button id="btnAddGoal" class="btn btn-secondary btn-sm" type="button">+ Add goal</button>
+                </div>
+                <div id="goalsTable"></div>
+              </div>
+
+              <!-- Tab: Advanced -->
+              <div class="tab-content" data-tab="advanced">
+                <h3>Raw Profile JSON</h3>
+                <p class="meta">Edit JSON directly if needed. Changes will be applied to the form.</p>
+                <textarea id="profileJson" class="textarea" spellcheck="false" style="min-height: 300px;"></textarea>
+                <div class="row" style="margin-top: 1rem;">
+                  <button id="btnApplyJsonToForm" class="btn btn-secondary" type="button">Apply JSON</button>
+                  <button id="btnCopyFormToJson" class="btn btn-secondary" type="button">Sync form to JSON</button>
+                </div>
+              </div>
+
+              <!-- Profile actions -->
+              <div class="action-buttons">
+                <button id="btnLoadProfile" class="btn btn-secondary" type="button">📥 Load</button>
+                <button id="btnSaveProfile" class="btn btn-primary" type="button">💾 Save Profile</button>
+                <button id="btnResetProfile" class="btn btn-ghost" type="button">🔄 Reset</button>
+              </div>
+
+              <div id="profileMsg" class="message" style="margin-top: 1rem;"></div>
+            </div>
+          </section>
+
+          <!-- DASHBOARD VIEW -->
+          <section class="view is-hidden" data-view="dashboard">
+            <div id="dashFocus"></div>
+            <div class="grid-2">
+              <div class="card">
+                <div class="card-title">Financial Summary</div>
+                <div class="card-subtitle">Derived from the most recent decision context</div>
+                <div id="dashMetrics" class="kv-grid"></div>
+              </div>
+              <div class="card">
+                <div class="card-title">Constraints</div>
+                <div class="card-subtitle">Detected constraints that affect recommendations</div>
+                <div id="dashConstraints" class="stack"></div>
+              </div>
+            </div>
+            <div class="card">
+              <div class="card-title">Recent Recommendations</div>
+              <div class="card-subtitle">Most recent decision (if available)</div>
+              <div id="dashRecs" class="stack"></div>
+            </div>
+          </section>
+
+          <!-- RECOMMENDATIONS VIEW -->
+          <section class="view is-hidden" data-view="recommendations">
+            <div class="card">
+              <div class="card-title">Recommendations</div>
+              <div class="card-subtitle">Deterministic recommendations grounded by retrieved context and matched opportunities. Decisions are persisted.</div>
+
+              <div class="row">
+                <div>
+                  <label class="field-label" for="recFocus">Focus</label>
+                  <select id="recFocus" class="select">
+                    <option value="overview">overview</option>
+                    <option value="debt">debt</option>
+                    <option value="investing">investing</option>
+                    <option value="savings">savings</option>
+                    <option value="goals">goals</option>
+                  </select>
+                </div>
+                <div class="grow"></div>
+                <button id="btnRunRecs" class="btn btn-primary" type="button">Generate</button>
+              </div>
+
+              <div id="recsState" class="state"></div>
+
+              <div class="grid-2">
+                <div class="card inner">
+                  <div class="card-title">Decision context</div>
+                  <div id="decisionContext" class="stack"></div>
+                </div>
+                <div class="card inner">
+                  <div class="card-title">Metrics</div>
+                  <div id="recMetrics" class="kv-grid"></div>
+                </div>
+              </div>
+
+              <div class="card inner">
+                <div class="card-title">Recommendations</div>
+                <div id="recommendationsList" class="stack"></div>
+              </div>
+            </div>
+          </section>
+
+          <!-- OPPORTUNITIES VIEW -->
+          <section class="view is-hidden" data-view="opportunities">
+            <div class="card">
+              <div class="card-title">Opportunities</div>
+              <div class="card-subtitle">Explore the local opportunity dataset and evaluate matches for the active profile.</div>
+
+              <div class="grid-3">
+                <div>
+                  <label class="field-label" for="oppCountry">Country</label>
+                  <input id="oppCountry" class="input" type="text" placeholder="US" />
+                </div>
+                <div>
+                  <label class="field-label" for="oppCurrency">Currency</label>
+                  <input id="oppCurrency" class="input" type="text" placeholder="USD" />
+                </div>
+                <div class="row row-end">
+                  <button id="btnLoadOpps" class="btn btn-secondary" type="button">Load</button>
+                  <button id="btnMatchOpps" class="btn btn-primary" type="button">Match for user</button>
+                </div>
+              </div>
+
+              <div id="oppsState" class="state"></div>
+
+              <div class="card inner">
+                <div class="card-title">Opportunity list</div>
+                <div id="oppsTable" class="table-wrap"></div>
+              </div>
+
+              <div class="card inner">
+                <div class="card-title">Matches and decision trace</div>
+                <div id="oppsMatches" class="stack"></div>
+              </div>
+            </div>
+          </section>
+
+          <!-- KNOWLEDGE VIEW -->
+          <section class="view is-hidden" data-view="knowledge">
+            <div class="card">
+              <div class="card-title">Knowledge Ingestion</div>
+              <div class="card-subtitle">Ingest plain-text context for retrieval and grounding.</div>
+              <div class="form-grid">
+                <div>
+                  <label class="field-label" for="docTitle">Title</label>
+                  <input id="docTitle" class="input" type="text" value="Macro note" />
+                </div>
+                <div>
+                  <label class="field-label" for="docSource">Source</label>
+                  <input id="docSource" class="input" type="text" placeholder="optional" />
+                </div>
+              </div>
+              <label class="field-label" for="docContent">Content</label>
+              <textarea id="docContent" class="textarea" placeholder="Paste economic notes, market commentary, policy updates, etc."></textarea>
+              <div class="row">
+                <button id="btnIngestDoc" class="btn btn-primary" type="button">Ingest</button>
+                <div class="grow"></div>
+                <div id="ingestMsg" class="message"></div>
+              </div>
+            </div>
+          </section>
+
+          <!-- QUERY VIEW -->
+          <section class="view is-hidden" data-view="query">
+            <div class="card">
+              <div class="card-title">Contextual Query (RAG)</div>
+              <div class="card-subtitle">Ask a question grounded in ingested documents. Citations are returned when context is retrieved.</div>
+
+              <label class="field-label" for="queryText">Question</label>
+              <textarea id="queryText" class="textarea" placeholder="Ask a question about your context and constraints."></textarea>
+
+              <div class="row">
+                <label class="checkbox">
+                  <input id="includeRecs" type="checkbox" checked />
+                  <span>Include recommendations</span>
+                </label>
+                <div class="grow"></div>
+                <button id="btnRunQuery" class="btn btn-primary" type="button">Run query</button>
+              </div>
+
+              <div id="queryState" class="state"></div>
+
+              <div class="grid-2">
+                <div class="card inner">
+                  <div class="card-title">Answer</div>
+                  <div id="queryAnswer" class="prose"></div>
+                </div>
+                <div class="card inner">
+                  <div class="card-title">Retrieval</div>
+                  <div id="queryMeta" class="kv-grid"></div>
+                  <div class="divider"></div>
+                  <div class="card-title">Citations</div>
+                  <div id="queryCitations" class="stack"></div>
+                </div>
+              </div>
+
+              <div class="card inner">
+                <div class="card-title">Recommendations (from /query)</div>
+                <div id="queryRecs" class="stack"></div>
+              </div>
+            </div>
+          </section>
+
+          <!-- HISTORY VIEW -->
+          <section class="view is-hidden" data-view="history">
+            <div class="card">
+              <div class="card-title">Decision History</div>
+              <div class="card-subtitle">Review persisted decisions and expand details for auditability.</div>
+              <div class="row">
+                <div>
+                  <label class="field-label" for="historyLimit">Limit</label>
+                  <input id="historyLimit" class="input" type="number" min="1" max="200" value="20" />
+                </div>
+                <div class="grow"></div>
+                <button id="btnLoadHistory" class="btn btn-secondary" type="button">Load history</button>
+              </div>
+              <div id="historyState" class="state"></div>
+              <div id="historyList" class="stack"></div>
+            </div>
+          </section>
+        </div>
+      </main>
+    </div>
+
+    <script src="app.js"></script>
+    <script>
+      // Tab navigation for profile
+      document.querySelectorAll('.profile-tab').forEach(tab => {
+        tab.addEventListener('click', function() {
+          const tabName = this.dataset.tab;
+          document.querySelectorAll('.profile-tab').forEach(t => t.classList.remove('is-active'));
+          document.querySelectorAll('.tab-content').forEach(tc => tc.classList.remove('is-active'));
+          this.classList.add('is-active');
+          document.querySelector(`.tab-content[data-tab="${tabName}"]`).classList.add('is-active');
+        });
+      });
+
+      // Update cashflow summary
+      const updateCashflowSummary = () => {
+        const income = parseFloat(document.getElementById('profileIncome').value) || 0;
+        const expenses = parseFloat(document.getElementById('profileExpenses').value) || 0;
+        const free = income - expenses;
+        const savings = income > 0 ? ((free / income) * 100).toFixed(1) : 0;
+        
+        const summary = document.getElementById('cashflowSummary');
+        summary.innerHTML = `
+          <div class="stat-box">
+            <div class="stat-value">${income.toLocaleString('en-US', { maximumFractionDigits: 0 })}</div>
+            <div class="stat-label">Monthly Income</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-value">${expenses.toLocaleString('en-US', { maximumFractionDigits: 0 })}</div>
+            <div class="stat-label">Monthly Expenses</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-value">${free.toLocaleString('en-US', { maximumFractionDigits: 0 })}</div>
+            <div class="stat-label">Free Cashflow</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-value">${savings}%</div>
+            <div class="stat-label">Savings Rate</div>
+          </div>
+        `;
+      };
+
+      document.getElementById('profileIncome').addEventListener('input', updateCashflowSummary);
+      document.getElementById('profileExpenses').addEventListener('input', updateCashflowSummary);
+      
+      // Initial state
+      setRoute = window.setRoute || (() => {});
+    </script>
+  </body>
+</html>

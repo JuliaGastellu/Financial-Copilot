@@ -1,0 +1,316 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="AI Financial Copilot — contextual opportunity engine with deterministic recommendations, decision tracing, and impact modeling." />
+    <title>AI Financial Copilot</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="brand">
+          <div class="brand-title">AI Financial Copilot</div>
+          <div class="brand-subtitle">Contextual Opportunity Engine</div>
+        </div>
+
+        <div class="sidebar-section">
+          <label class="field-label" for="userId">User ID</label>
+          <div class="row">
+            <input id="userId" class="input" type="text" value="demo-user" autocomplete="off" />
+            <button id="btnSetUser" class="btn btn-primary" type="button">Set</button>
+          </div>
+          <div class="meta" id="activeUserMeta"></div>
+        </div>
+
+        <nav class="nav">
+          <button class="nav-item is-active" data-route="dashboard" type="button">Dashboard</button>
+          <button class="nav-item" data-route="profile" type="button">Profile</button>
+          <button class="nav-item" data-route="knowledge" type="button">Knowledge</button>
+          <button class="nav-item" data-route="query" type="button">Query</button>
+          <button class="nav-item" data-route="recommendations" type="button">Recommendations</button>
+          <button class="nav-item" data-route="opportunities" type="button">Opportunities</button>
+          <button class="nav-item" data-route="history" type="button">History</button>
+        </nav>
+
+        <div class="sidebar-footer">
+          <div class="meta">
+            <div class="meta-row">
+              <span class="meta-key">Last request</span>
+              <span class="meta-value" id="lastRequestId">—</span>
+            </div>
+            <div class="meta-row">
+              <span class="meta-key">API status</span>
+              <span class="meta-value" id="apiStatus">—</span>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <main class="main">
+        <header class="topbar">
+          <div class="topbar-title" id="viewTitle">Dashboard</div>
+          <div class="topbar-actions">
+            <button id="btnRefresh" class="btn btn-secondary" type="button">Refresh</button>
+          </div>
+        </header>
+
+        <div class="content">
+          <section class="view" data-view="dashboard">
+            <div id="dashFocus"></div>
+            <div class="grid-2">
+              <div class="card">
+                <div class="card-title">Financial Summary</div>
+                <div class="card-subtitle">Derived from the most recent decision context</div>
+                <div id="dashMetrics" class="kv-grid"></div>
+              </div>
+              <div class="card">
+                <div class="card-title">Constraints</div>
+                <div class="card-subtitle">Detected constraints that affect recommendations</div>
+                <div id="dashConstraints" class="stack"></div>
+              </div>
+            </div>
+            <div class="card">
+              <div class="card-title">Recent Recommendations</div>
+              <div class="card-subtitle">Most recent decision (if available)</div>
+              <div id="dashRecs" class="stack"></div>
+            </div>
+          </section>
+
+          <section class="view is-hidden" data-view="profile">
+            <div class="card">
+              <div class="card-title">Profile Editor</div>
+              <div class="card-subtitle">Update your financial profile. Saved profiles are persisted in SQLite.</div>
+
+              <div class="form-grid">
+                <div>
+                  <label class="field-label" for="profileCountry">Country</label>
+                  <input id="profileCountry" class="input" type="text" placeholder="US" />
+                </div>
+                <div>
+                  <label class="field-label" for="profileCurrency">Currency</label>
+                  <input id="profileCurrency" class="input" type="text" placeholder="USD" />
+                </div>
+                <div>
+                  <label class="field-label" for="profileRisk">Risk tolerance</label>
+                  <select id="profileRisk" class="select">
+                    <option value="low">low</option>
+                    <option value="medium" selected>medium</option>
+                    <option value="high">high</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="field-label" for="profileIncome">Monthly income</label>
+                  <input id="profileIncome" class="input" type="number" min="0" step="0.01" />
+                </div>
+                <div>
+                  <label class="field-label" for="profileExpenses">Monthly expenses</label>
+                  <input id="profileExpenses" class="input" type="number" min="0" step="0.01" />
+                </div>
+                <div>
+                  <label class="field-label" for="profileConstraints">Preference constraints</label>
+                  <input id="profileConstraints" class="input" type="text" placeholder="comma separated" />
+                </div>
+              </div>
+
+              <div class="section">
+                <div class="section-title">Assets</div>
+                <div id="assetsTable"></div>
+                <button id="btnAddAsset" class="btn btn-secondary" type="button">Add asset</button>
+              </div>
+
+              <div class="section">
+                <div class="section-title">Liabilities</div>
+                <div id="liabilitiesTable"></div>
+                <button id="btnAddLiability" class="btn btn-secondary" type="button">Add liability</button>
+              </div>
+
+              <div class="section">
+                <div class="section-title">Goals</div>
+                <div id="goalsTable"></div>
+                <button id="btnAddGoal" class="btn btn-secondary" type="button">Add goal</button>
+              </div>
+
+              <div class="row">
+                <button id="btnLoadProfile" class="btn btn-secondary" type="button">Load</button>
+                <button id="btnSaveProfile" class="btn btn-primary" type="button">Save</button>
+                <div class="grow"></div>
+                <button id="btnResetProfile" class="btn btn-ghost" type="button">Reset</button>
+              </div>
+
+              <details class="details">
+                <summary>Advanced (raw profile JSON)</summary>
+                <div class="details-body">
+                  <textarea id="profileJson" class="textarea" spellcheck="false"></textarea>
+                  <div class="row">
+                    <button id="btnApplyJsonToForm" class="btn btn-secondary" type="button">Apply JSON to form</button>
+                    <button id="btnCopyFormToJson" class="btn btn-secondary" type="button">Copy form to JSON</button>
+                  </div>
+                </div>
+              </details>
+              <div id="profileMsg" class="message"></div>
+            </div>
+          </section>
+
+          <section class="view is-hidden" data-view="knowledge">
+            <div class="card">
+              <div class="card-title">Knowledge Ingestion</div>
+              <div class="card-subtitle">Ingest plain-text context for retrieval and grounding.</div>
+              <div class="form-grid">
+                <div>
+                  <label class="field-label" for="docTitle">Title</label>
+                  <input id="docTitle" class="input" type="text" value="Macro note" />
+                </div>
+                <div>
+                  <label class="field-label" for="docSource">Source</label>
+                  <input id="docSource" class="input" type="text" placeholder="optional" />
+                </div>
+              </div>
+              <label class="field-label" for="docContent">Content</label>
+              <textarea id="docContent" class="textarea" placeholder="Paste economic notes, market commentary, policy updates, etc."></textarea>
+              <div class="row">
+                <button id="btnIngestDoc" class="btn btn-primary" type="button">Ingest</button>
+                <div class="grow"></div>
+                <div id="ingestMsg" class="message"></div>
+              </div>
+            </div>
+          </section>
+
+          <section class="view is-hidden" data-view="query">
+            <div class="card">
+              <div class="card-title">Contextual Query (RAG)</div>
+              <div class="card-subtitle">Ask a question grounded in ingested documents. Citations are returned when context is retrieved.</div>
+
+              <label class="field-label" for="queryText">Question</label>
+              <textarea id="queryText" class="textarea" placeholder="Ask a question about your context and constraints."></textarea>
+
+              <div class="row">
+                <label class="checkbox">
+                  <input id="includeRecs" type="checkbox" checked />
+                  <span>Include recommendations</span>
+                </label>
+                <div class="grow"></div>
+                <button id="btnRunQuery" class="btn btn-primary" type="button">Run query</button>
+              </div>
+
+              <div id="queryState" class="state"></div>
+
+              <div class="grid-2">
+                <div class="card inner">
+                  <div class="card-title">Answer</div>
+                  <div id="queryAnswer" class="prose"></div>
+                </div>
+                <div class="card inner">
+                  <div class="card-title">Retrieval</div>
+                  <div id="queryMeta" class="kv-grid"></div>
+                  <div class="divider"></div>
+                  <div class="card-title">Citations</div>
+                  <div id="queryCitations" class="stack"></div>
+                </div>
+              </div>
+
+              <div class="card inner">
+                <div class="card-title">Recommendations (from /query)</div>
+                <div id="queryRecs" class="stack"></div>
+              </div>
+            </div>
+          </section>
+
+          <section class="view is-hidden" data-view="recommendations">
+            <div class="card">
+              <div class="card-title">Recommendations</div>
+              <div class="card-subtitle">Deterministic recommendations grounded by retrieved context and matched opportunities. Decisions are persisted.</div>
+
+              <div class="row">
+                <div>
+                  <label class="field-label" for="recFocus">Focus</label>
+                  <select id="recFocus" class="select">
+                    <option value="overview">overview</option>
+                    <option value="debt">debt</option>
+                    <option value="investing">investing</option>
+                    <option value="savings">savings</option>
+                    <option value="goals">goals</option>
+                  </select>
+                </div>
+                <div class="grow"></div>
+                <button id="btnRunRecs" class="btn btn-primary" type="button">Generate</button>
+              </div>
+
+              <div id="recsState" class="state"></div>
+
+              <div class="grid-2">
+                <div class="card inner">
+                  <div class="card-title">Decision context</div>
+                  <div id="decisionContext" class="stack"></div>
+                </div>
+                <div class="card inner">
+                  <div class="card-title">Metrics</div>
+                  <div id="recMetrics" class="kv-grid"></div>
+                </div>
+              </div>
+
+              <div class="card inner">
+                <div class="card-title">Recommendations</div>
+                <div id="recommendationsList" class="stack"></div>
+              </div>
+            </div>
+          </section>
+
+          <section class="view is-hidden" data-view="opportunities">
+            <div class="card">
+              <div class="card-title">Opportunities</div>
+              <div class="card-subtitle">Explore the local opportunity dataset and evaluate matches for the active profile.</div>
+
+              <div class="grid-3">
+                <div>
+                  <label class="field-label" for="oppCountry">Country</label>
+                  <input id="oppCountry" class="input" type="text" placeholder="US" />
+                </div>
+                <div>
+                  <label class="field-label" for="oppCurrency">Currency</label>
+                  <input id="oppCurrency" class="input" type="text" placeholder="USD" />
+                </div>
+                <div class="row row-end">
+                  <button id="btnLoadOpps" class="btn btn-secondary" type="button">Load</button>
+                  <button id="btnMatchOpps" class="btn btn-primary" type="button">Match for user</button>
+                </div>
+              </div>
+
+              <div id="oppsState" class="state"></div>
+
+              <div class="card inner">
+                <div class="card-title">Opportunity list</div>
+                <div id="oppsTable" class="table-wrap"></div>
+              </div>
+
+              <div class="card inner">
+                <div class="card-title">Matches and decision trace</div>
+                <div id="oppsMatches" class="stack"></div>
+              </div>
+            </div>
+          </section>
+
+          <section class="view is-hidden" data-view="history">
+            <div class="card">
+              <div class="card-title">Decision History</div>
+              <div class="card-subtitle">Review persisted decisions and expand details for auditability.</div>
+              <div class="row">
+                <div>
+                  <label class="field-label" for="historyLimit">Limit</label>
+                  <input id="historyLimit" class="input" type="number" min="1" max="200" value="20" />
+                </div>
+                <div class="grow"></div>
+                <button id="btnLoadHistory" class="btn btn-secondary" type="button">Load history</button>
+              </div>
+              <div id="historyState" class="state"></div>
+              <div id="historyList" class="stack"></div>
+            </div>
+          </section>
+        </div>
+      </main>
+    </div>
+
+    <script src="app.js"></script>
+  </body>
+</html>
