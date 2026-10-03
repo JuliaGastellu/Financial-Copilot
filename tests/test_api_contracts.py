@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from app.rag.ingestion import ingest_public_document
-from tests.v1_payloads import goal_v1, profile_v1
+from tests.v1_payloads import idem, goal_v1, profile_v1
 
 
 def _ingest(client, content: str) -> None:
@@ -43,9 +43,13 @@ def test_contract_plan_record_shape(client, auth):
     h = auth("c4")
     client.put("/v1/profile", json=profile_v1(), headers=h)
     client.post("/v1/goals", json=goal_v1(), headers=h)
-    res = client.post("/v1/plans", json={"as_of": "2026-10-03"}, headers=h)
+    res = client.post("/v1/plans", json={"as_of": "2026-10-03"}, headers=idem(h))
     assert res.status_code == 201
     body = res.json()
-    assert set(body.keys()) == {"id", "as_of", "policy_version", "created_at", "plan"}
+    assert set(body.keys()) == {
+        "id", "version", "status", "source", "source_scenario_id", "as_of", "policy_version", "engine_version",
+        "created_at", "superseded_at", "reproducible", "snapshot", "result",
+    }
     assert body["as_of"] == "2026-10-03"
-    assert {"budgets", "goals", "constraints", "assumptions", "missing_data", "scenarios"} <= set(body["plan"].keys())
+    assert body["version"] == 1 and body["status"] == "active" and body["reproducible"] is True
+    assert {"budgets", "goals", "constraints", "assumptions", "missing_data", "scenarios"} <= set(body["result"].keys())

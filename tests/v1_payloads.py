@@ -1,6 +1,7 @@
 """Datos ficticios para pruebas v1."""
 from __future__ import annotations
 
+import uuid
 from typing import Any
 
 
@@ -26,3 +27,8 @@ def goal_v1(name: str = "Down payment", amount: str | int = 20000, **overrides: 
     goal: dict[str, Any] = {"name": name, "target": money(amount), "priority": "high", "horizon_months": 18}
     goal.update(overrides)
     return goal
+
+
+def idem(headers: dict[str, str]) -> dict[str, str]:
+    """Agrego una clave de idempotencia nueva a los encabezados de una creación."""
+    return {**headers, "Idempotency-Key": f"test-{uuid.uuid4()}"}

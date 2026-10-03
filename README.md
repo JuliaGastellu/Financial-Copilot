@@ -5,7 +5,8 @@ Estoy desarrollando una herramienta para organizar ingresos, gastos, deudas y me
 ## Qué implementé
 
 - **Cuentas con identidad gestionada.** Las rutas `/v1` exigen un token de acceso OIDC (JWT). Verifico firma por JWKS, emisor, audiencia, expiración y rotación de claves. La cuenta sale del token; la URL y el cuerpo no aceptan identificadores de persona. Retiré las rutas anteriores que tomaban un `user_id` del cliente.
-- **Perfil, metas y planes v1.** Los importes son Decimal con moneda explícita. Los planes se calculan con el núcleo de `app/finance/`, que mantiene un presupuesto por moneda y reparte el saldo actual y el excedente mensual una sola vez: reserva, deuda de tasa alta y metas. Cada plan guarda sus entradas y la versión de la política.
+- **Perfil, metas y planes v1.** Los importes son Decimal con moneda explícita. Los planes se calculan con el núcleo de `app/finance/`, que mantiene un presupuesto por moneda y reparte el saldo actual y el excedente mensual una sola vez: reserva, deuda de tasa alta y metas.
+- **Planes versionados, escenarios y revisión mensual.** Cada plan es una versión con un snapshot mínimo y tipado, la política y la versión del motor, y se puede reproducir. Los escenarios no modifican el plan vigente: adoptarlos es una acción explícita que crea otra versión. Registro avances por meta y mes sin contar dos veces un aporte, y comparo lo previsto con lo registrado. Las creaciones exigen `Idempotency-Key`. Las reglas están en [planes y revisión](docs/PLANES_Y_REVISION.md).
 - **Persistencia en PostgreSQL** con SQLAlchemy y migraciones versionadas de Alembic (`migrations/`), con restricciones e índices. Para desarrollo y pruebas también acepto SQLite; producción exige PostgreSQL.
 - **Privacidad.** Exportación (`GET /v1/me/export`), borrado con recibo de evidencia (`DELETE /v1/me`), retención, auditoría sin contenido financiero y reaplicación de borrados tras restaurar un backup.
 - **Corpus público curado** para preguntas educativas (`POST /v1/knowledge/query`). Los documentos privados quedan fuera de esta etapa: no hay ingesta por HTTP y la base solo admite el corpus público.
@@ -85,7 +86,7 @@ No versiono `data/app.db`, `data/chroma/` ni `data/dev_identity/`. Retiré del �
 - Casos de uso: `app/services/`.
 - Contratos: `app/schemas/`.
 - Repositorios: `app/data/`.
-- Esquema y migraciones: `app/db/` y `migrations/`.
+- Esquema y migraciones: `app/db/` y `migrations/`; contratos de planes en `app/schemas/plans_v1.py`.
 - Dominio financiero: `app/finance/`.
 - Motor de recomendaciones: `app/reasoning/` y `app/opportunity_engine/`.
 - Recuperación: `app/rag/`.

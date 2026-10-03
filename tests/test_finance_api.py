@@ -9,7 +9,7 @@ from typing import Any
 from app.finance import plan_for_profile
 from app.reasoning.engine import generate_recommendations
 from tests.engine_helpers import match, recommend
-from tests.v1_payloads import goal_v1, money, profile_v1
+from tests.v1_payloads import idem, goal_v1, money, profile_v1
 
 
 def _legacy_profile(user_id: str, **overrides: Any) -> dict[str, Any]:
@@ -45,9 +45,9 @@ def _setup_v1(client, headers, cash: int = 8000) -> None:
 def test_plan_endpoint_shape(client, auth) -> None:
     h = auth("p1")
     _setup_v1(client, h)
-    res = client.post("/v1/plans", json={"as_of": "2026-10-03"}, headers=h)
+    res = client.post("/v1/plans", json={"as_of": "2026-10-03"}, headers=idem(h))
     assert res.status_code == 201
-    body = res.json()["plan"]
+    body = res.json()["result"]
     assert body["base_currency"] == "USD"
     usd = body["budgets"][0]
     assert usd["monthly"]["surplus"] == {"amount": "2500.00", "currency": "USD"}
@@ -61,7 +61,7 @@ def test_responses_contain_no_uncalibrated_indicators(client, auth) -> None:
     h = auth("p2")
     _setup_v1(client, h, cash=60000)
     texts = [
-        client.post("/v1/plans", json={}, headers=h).text,
+        client.post("/v1/plans", json={}, headers=idem(h)).text,
         json.dumps(recommend(_legacy_profile("p2", assets=[{"name": "Cash", "value": 60000, "liquidity": "high"}]))),
     ]
     for text in texts:
@@ -122,7 +122,7 @@ def test_dates_are_persisted_and_overdue_goals_are_reported(client, auth) -> Non
     created = client.post("/v1/goals", json=goal, headers=h)
     assert created.status_code == 201
     assert created.json()["target_date"] == "2000-01-01"
-    plan = client.post("/v1/plans", json={}, headers=h).json()["plan"]
+    plan = client.post("/v1/plans", json={}, headers=idem(h)).json()["result"]
     assert plan["goals"][0]["status"] == "overdue"
 
 
@@ -135,10 +135,11 @@ def test_legacy_decision_history_route_is_retired(client, auth) -> None:
 def test_plan_inputs_allow_reproduction(client, auth) -> None:
     h = auth("p7")
     _setup_v1(client, h)
-    first = client.post("/v1/plans", json={"as_of": "2026-10-03"}, headers=h).json()
-    second = client.post("/v1/plans", json={"as_of": "2026-10-03"}, headers=h).json()
+    first = client.post("/v1/plans", json={"as_of": "2026-10-03"}, headers=idem(h)).json()
+    second = client.post("/v1/plans", json={"as_of": "2026-10-03"}, headers=idem(h)).json()
     assert first["id"] != second["id"]
-    assert first["plan"] == second["plan"]
+    assert first["result"] == second["result"]
+    assert client.get(f"/v1/plans/{first['id']}", headers=h).json()["status"] == "superseded"
 
 
 class _FakeLlm:

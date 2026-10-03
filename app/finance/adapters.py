@@ -129,6 +129,7 @@ def snapshot_from_profile(profile: dict[str, Any], as_of: date) -> FinancialSnap
                 priority=g.get("priority") or "medium",
                 target_date=target_date,
                 horizon_months=int(horizon) if horizon is not None else None,
+                goal_id=str(g["goal_id"]) if g.get("goal_id") else None,
             )
         )
 

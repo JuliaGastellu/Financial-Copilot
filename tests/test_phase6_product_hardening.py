@@ -4,7 +4,7 @@ import json
 import logging
 
 from tests.engine_helpers import match
-from tests.v1_payloads import goal_v1, profile_v1
+from tests.v1_payloads import idem, goal_v1, profile_v1
 
 
 def test_request_id_header_is_present(test_client):
@@ -45,14 +45,14 @@ def test_plan_persistence_and_logging(client, auth, caplog):
     assert client.put("/v1/profile", json=profile_v1(), headers=h).status_code == 200
     assert client.post("/v1/goals", json=goal_v1(), headers=h).status_code == 201
 
-    res = client.post("/v1/plans", json={}, headers=h)
+    res = client.post("/v1/plans", json={}, headers=idem(h))
     assert res.status_code == 201
     request_id = res.headers["X-Request-ID"]
     plan_id = res.json()["id"]
 
     listed = client.get("/v1/plans", headers=h).json()
-    assert [p["id"] for p in listed] == [plan_id]
-    assert client.get(f"/v1/plans/{plan_id}", headers=h).json()["plan"] == res.json()["plan"]
+    assert [p["id"] for p in listed["items"]] == [plan_id]
+    assert client.get(f"/v1/plans/{plan_id}", headers=h).json()["result"] == res.json()["result"]
 
     events = []
     for rec in caplog.records:

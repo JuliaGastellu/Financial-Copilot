@@ -38,7 +38,7 @@ Dejé los documentos privados fuera de esta etapa:
 
 | Almacén | Datos personales | Tratamiento al borrar la cuenta |
 |---|---|---|
-| Base relacional: `users`, `profiles`, `goals`, `plans` | Sí | Borro todo en una transacción y verifico que no quede ninguna fila antes de confirmar. |
+| Base relacional: `users`, `profiles`, `goals`, `plans`, `scenarios`, `progress_entries`, `idempotency_keys` | Sí | Borro todo en una transacción y verifico que no quede ninguna fila antes de confirmar. |
 | `audit_events` | UUID interno, acción, tipo y resultado; sin importes ni textos | Los conservo hasta `AUDIT_RETENTION_DAYS` (365). Tras el borrado no queda vínculo entre ese UUID y la identidad. |
 | `deletion_receipts` | HMAC de (`iss`, `sub`) con `PRIVACY_HASH_KEY`, fecha y conteos | Los conservo mientras pueda existir un backup anterior al borrado: `BACKUP_RETENTION_DAYS` + 30 días. |
 | Índice vectorial (Chroma) | No: solo corpus público | No aplica. |
@@ -47,13 +47,14 @@ Dejé los documentos privados fuera de esta etapa:
 
 `DELETE /v1/me` devuelve un recibo con la evidencia por almacén: filas borradas, filas restantes (siempre cero) y el tratamiento de índice, auditoría, logs y backups. Si la persona vuelve a iniciar sesión, obtiene una cuenta nueva y vacía.
 
-`GET /v1/me/export` devuelve en JSON la cuenta, el perfil, las metas, los planes con sus entradas y los eventos de auditoría propios.
+`GET /v1/me/export` devuelve en JSON la cuenta, el perfil, las metas, los planes con sus entradas, los escenarios, los avances y los eventos de auditoría propios.
 
 ## Retención
 
 `python scripts/privacy_maintenance.py retention` aplica estos plazos:
 
-- Borra los planes guardados con más de `PLAN_RETENTION_DAYS` (730).
+- Borra las versiones de plan reemplazadas con más de `PLAN_RETENTION_DAYS` (730) y sus escenarios. Nunca borra el plan vigente.
+- Borra las claves de idempotencia con más de 7 días.
 - Borra los eventos de auditoría con más de `AUDIT_RETENTION_DAYS` (365).
 - Borra los recibos que ya no cubren ningún backup.
 

@@ -128,3 +128,41 @@ Sigue pendiente:
 - tratamiento de cuentas inactivas;
 - revisión profesional del tratamiento de datos;
 - la nueva interfaz.
+
+## Estado tras la etapa de planes, escenarios y revisión mensual
+
+Implementé planes versionados con snapshot mínimo y tipado, versión de política y versión del motor, escenarios que no modifican el plan vigente, adopción explícita, avances mensuales y revisión. Las reglas están en [planes y revisión](PLANES_Y_REVISION.md). Con esto también resuelvo el hallazgo P2 sobre resultados históricos sin entradas: cada versión nueva se puede reproducir y una prueba confirma que el recálculo coincide con lo guardado.
+
+Probé el recorrido completo por API:
+
+1. Creo un plan.
+2. Simulo una caída de ingreso de 20%.
+3. Compruebo que el plan original no cambia.
+4. Adopto el escenario como versión 2.
+5. Registro el avance del mes y lo reviso contra la versión vigente.
+6. Reproduzco las dos versiones.
+
+También probé:
+
+- Idempotencia: reintentos, reutilización de clave con otro cuerpo, cinco reintentos simultáneos y claves independientes entre cuentas.
+- Que un aporte se cuente una sola vez según su origen y según cuándo se actualizan los saldos declarados.
+- Detección de planes desactualizados.
+- Paginación con cursor.
+- Errores con código estable.
+- Aislamiento entre cuentas en planes, escenarios y avances.
+
+Al probar en PostgreSQL encontré y corregí dos errores:
+
+- El identificador de la migración superaba los 32 caracteres que admite `alembic_version`. Agregué una prueba que lo controla.
+- Ante una migración fallida, el desbloqueo ocultaba el error original.
+
+Resultados del 3 de octubre de 2026 con el entorno limpio de Python 3.11:
+
+- SQLite: 280 pruebas aprobadas y 2 omitidas, ambas exclusivas de PostgreSQL.
+- PostgreSQL 16: 281 aprobadas y 1 omitida, el restore de SQLite.
+
+Pendiente:
+
+- La interfaz que consuma estos contratos.
+- Notificaciones o recordatorios de revisión.
+- Conciliación asistida de saldos: hoy la persona actualiza el ahorro y los saldos a mano.

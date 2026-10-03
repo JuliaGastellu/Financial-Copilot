@@ -54,6 +54,10 @@ def upgrade(url: str, revision: str = "head") -> None:
                 config.attributes["connection"] = conn
                 command.upgrade(config, revision)
                 conn.commit()
+            except Exception:
+                # Descarto la transacción fallida para poder liberar el lock y conservar el error original.
+                conn.rollback()
+                raise
             finally:
                 conn.exec_driver_sql(f"SELECT pg_advisory_unlock({_MIGRATION_LOCK_ID})")
                 conn.commit()

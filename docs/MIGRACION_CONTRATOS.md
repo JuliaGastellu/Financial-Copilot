@@ -1,5 +1,17 @@
 # Migración de contratos
 
+## Planes versionados, escenarios y avances (etapa de planificación)
+
+Cambié las rutas de planes de la etapa anterior. La API v1 todavía no se publicó, así que no mantuve el formato previo:
+
+- `POST /v1/plans` exige `Idempotency-Key` y devuelve `PlanV1`: `id`, `version`, `status`, `source`, `source_scenario_id`, `as_of`, `policy_version`, `engine_version`, `created_at`, `superseded_at`, `reproducible`, `snapshot` y `result`. El campo `plan` pasó a llamarse `result` y tiene un contrato tipado (`PlanResultV1`).
+- `GET /v1/plans` devuelve `{items, next_cursor}` en lugar de una lista.
+- Solo puedo borrar versiones reemplazadas; el plan vigente responde 409 `plan_active`.
+- Agregué estas rutas: `GET /v1/plans/current`, `GET /v1/plans/{id}/reproduction`, `/v1/scenarios`, `/v1/scenarios/{id}/adoption`, `/v1/progress` y `/v1/reviews/{YYYY-MM}`.
+- Los errores de estas rutas agregan `code` junto a `detail`.
+
+Las reglas están en [planes y revisión](PLANES_Y_REVISION.md). La migración `0002` convierte los planes guardados antes en versiones `legacy`: marca como vigente el más reciente de cada cuenta y no los considera reproducibles.
+
 ## Contratos v1 con identidad (etapa de cuentas)
 
 Retiré todas las rutas anteriores que tomaban la identidad de la URL o del cuerpo: `PUT/GET /profiles/{user_id}`, `POST /query`, `POST /recommendations`, `POST /context/ingest`, `GET /plans/{user_id}`, `GET /opportunities/match/{user_id}` y `GET /decisions/{user_id}`. También dejé de servir la interfaz anterior (`/static`, `/app.js`, `/styles.css`), que dependía de esas rutas. Ahora responden 404. Solo quedan públicas `/health`, `/ready`, `/opportunities` (catálogo ilustrativo) y una página de aviso en `/`.
@@ -12,7 +24,7 @@ Las rutas nuevas exigen `Authorization: Bearer <token>`:
 | `GET /v1/me/export` | Exportar todos los datos propios en JSON. |
 | `GET/PUT /v1/profile` | Perfil con importes `{amount, currency}` y un flujo por moneda. |
 | `GET/POST /v1/goals`, `GET/PUT/DELETE /v1/goals/{id}` | Metas; como máximo `MAX_GOALS_PER_USER` por cuenta. |
-| `POST/GET /v1/plans`, `GET/DELETE /v1/plans/{id}` | Calcular y guardar planes con sus entradas; listar como máximo 50. |
+| `POST/GET /v1/plans`, `GET/DELETE /v1/plans/{id}` | Calcular y guardar planes; el contrato vigente está en la sección de planificación. |
 | `POST /v1/knowledge/query` | Preguntas sobre el corpus público; no usa el perfil. |
 
 Los cuerpos rechazan campos desconocidos. La consulta de conocimiento ya no devuelve `recommendations` ni usa el perfil. El motor de recomendaciones y el catálogo siguen como módulos internos probados, sin ruta pública.

@@ -16,7 +16,10 @@ from sqlalchemy import Engine, delete, func, insert, select
 
 from app.core.config import Settings
 from app.data.accounts import new_id, utc_now
-from app.db.schema import audit_events, deletion_receipts, goals, plans, profiles, users
+from app.db.schema import audit_events, deletion_receipts, goals, idempotency_keys, plans, profiles, progress_entries, scenarios, users
+
+# Conservo las claves de idempotencia lo suficiente para cubrir reintentos.
+IDEMPOTENCY_RETENTION_DAYS = 7
 
 # Clave fija solo para local y test; producción exige PRIVACY_HASH_KEY.
 _DEV_HASH_KEY = "local-development-only-privacy-hash-key"
@@ -38,13 +41,20 @@ def _count(conn: Any, table: Any, column: Any, owner_id: str) -> int:
     return int(conn.execute(select(func.count()).select_from(table).where(column == owner_id)).scalar_one())
 
 
+# Orden de borrado: primero las tablas que dependen de otras.
+_PERSONAL = (
+    ("idempotency_keys", idempotency_keys, idempotency_keys.c.user_id),
+    ("progress_entries", progress_entries, progress_entries.c.user_id),
+    ("scenarios", scenarios, scenarios.c.user_id),
+    ("plans", plans, plans.c.user_id),
+    ("goals", goals, goals.c.user_id),
+    ("profiles", profiles, profiles.c.user_id),
+    ("users", users, users.c.id),
+)
+
+
 def _personal_counts(conn: Any, owner_id: str) -> dict[str, int]:
-    return {
-        "plans": _count(conn, plans, plans.c.user_id, owner_id),
-        "goals": _count(conn, goals, goals.c.user_id, owner_id),
-        "profiles": _count(conn, profiles, profiles.c.user_id, owner_id),
-        "users": _count(conn, users, users.c.id, owner_id),
-    }
+    return {name: _count(conn, table, column, owner_id) for name, table, column in _PERSONAL}
 
 
 @dataclass(frozen=True)
@@ -57,7 +67,13 @@ class PrivacyRepository:
             user = conn.execute(select(users).where(users.c.id == owner_id)).mappings().first()
             profile = conn.execute(select(profiles).where(profiles.c.user_id == owner_id)).mappings().first()
             goal_rows = conn.execute(select(goals).where(goals.c.user_id == owner_id).order_by(goals.c.created_at)).mappings().all()
-            plan_rows = conn.execute(select(plans).where(plans.c.user_id == owner_id).order_by(plans.c.created_at)).mappings().all()
+            plan_rows = conn.execute(select(plans).where(plans.c.user_id == owner_id).order_by(plans.c.version)).mappings().all()
+            scenario_rows = conn.execute(
+                select(scenarios).where(scenarios.c.user_id == owner_id).order_by(scenarios.c.created_at)
+            ).mappings().all()
+            progress_rows = conn.execute(
+                select(progress_entries).where(progress_entries.c.user_id == owner_id).order_by(progress_entries.c.recorded_at)
+            ).mappings().all()
             audit_rows = conn.execute(
                 select(audit_events).where(audit_events.c.user_id == owner_id).order_by(audit_events.c.occurred_at)
             ).mappings().all()
@@ -66,6 +82,8 @@ class PrivacyRepository:
             "profile": dict(profile) if profile else None,
             "goals": [dict(r) for r in goal_rows],
             "plans": [dict(r) for r in plan_rows],
+            "scenarios": [dict(r) for r in scenario_rows],
+            "progress_entries": [dict(r) for r in progress_rows],
             "audit_events": [dict(r) for r in audit_rows],
         }
 
@@ -74,10 +92,8 @@ class PrivacyRepository:
         now = utc_now()
         with self.engine.begin() as conn:
             before = _personal_counts(conn, owner_id)
-            conn.execute(delete(plans).where(plans.c.user_id == owner_id))
-            conn.execute(delete(goals).where(goals.c.user_id == owner_id))
-            conn.execute(delete(profiles).where(profiles.c.user_id == owner_id))
-            conn.execute(delete(users).where(users.c.id == owner_id))
+            for _name, table, column in _PERSONAL:
+                conn.execute(delete(table).where(column == owner_id))
             after = _personal_counts(conn, owner_id)
             if any(after.values()):
                 raise RuntimeError("Personal rows remain after deletion; rolling back.")
@@ -132,7 +148,7 @@ class PrivacyRepository:
             deleted_at = by_hash.get(subject_hash(key, account["issuer"], account["subject"]))
             if deleted_at is not None and _aware(account["created_at"]) <= deleted_at:
                 with self.engine.begin() as conn:
-                    for table, column in ((plans, plans.c.user_id), (goals, goals.c.user_id), (profiles, profiles.c.user_id), (users, users.c.id)):
+                    for _name, table, column in _PERSONAL:
                         conn.execute(delete(table).where(column == account["id"]))
                 reapplied.append(account["id"])
         existing = {r["id"] for r in self.export_receipts()}
@@ -154,10 +170,23 @@ class PrivacyRepository:
         # Conservo los recibos mientras pueda existir un backup anterior al borrado, más un margen.
         receipt_cutoff = now - timedelta(days=self.settings.backup_retention_days + 30)
         with self.engine.begin() as conn:
-            removed_plans = conn.execute(delete(plans).where(plans.c.created_at < plan_cutoff)).rowcount
+            # Nunca borro el plan vigente por antigüedad: solo versiones reemplazadas.
+            old_plans = select(plans.c.id).where(plans.c.created_at < plan_cutoff, plans.c.status == "superseded")
+            conn.execute(delete(scenarios).where(scenarios.c.base_plan_id.in_(old_plans)))
+            removed_plans = conn.execute(
+                delete(plans).where(plans.c.created_at < plan_cutoff, plans.c.status == "superseded")
+            ).rowcount
+            removed_keys = conn.execute(
+                delete(idempotency_keys).where(idempotency_keys.c.created_at < now - timedelta(days=IDEMPOTENCY_RETENTION_DAYS))
+            ).rowcount
             removed_audit = conn.execute(delete(audit_events).where(audit_events.c.occurred_at < audit_cutoff)).rowcount
             removed_receipts = conn.execute(delete(deletion_receipts).where(deletion_receipts.c.deleted_at < receipt_cutoff)).rowcount
-        return {"plans": removed_plans, "audit_events": removed_audit, "deletion_receipts": removed_receipts}
+        return {
+            "plans": removed_plans,
+            "audit_events": removed_audit,
+            "deletion_receipts": removed_receipts,
+            "idempotency_keys": removed_keys,
+        }
 
 
 def _aware(value: datetime) -> datetime:

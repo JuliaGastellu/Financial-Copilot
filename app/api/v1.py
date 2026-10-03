@@ -3,11 +3,27 @@ from __future__ import annotations
 
 from typing import Any, Callable
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
+from fastapi import APIRouter, Depends, Header, HTTPException, Path, Query, Request, Response
 
 from app.auth.dependencies import current_user
 from app.core.config import Settings
+from app.api.errors import ApiProblem
 from app.data.accounts import UserRecord
+from app.data.planning import InvalidCursorError
+from app.schemas.plans_v1 import (
+    CurrentPlanV1,
+    MonthlyReviewV1,
+    Page,
+    PlanCreateV1,
+    PlanSummaryV1,
+    PlanV1,
+    ProgressCreateV1,
+    ProgressEntryV1,
+    ReproductionV1,
+    ScenarioCreateV1,
+    ScenarioSummaryV1,
+    ScenarioV1,
+)
 from app.schemas.v1 import (
     DeletionResultV1,
     GoalInputV1,
@@ -15,13 +31,11 @@ from app.schemas.v1 import (
     KnowledgeAnswerV1,
     KnowledgeQueryV1,
     MeV1,
-    PlanRecordV1,
-    PlanRequestV1,
-    PlanSummaryV1,
     ProfileResponseV1,
     ProfileV1,
 )
 from app.services.accounts import AccountService, LimitExceededError, NotFoundError, goal_to_v1
+from app.services.planning import ConflictError, PlanningService, ValidationProblem
 
 Limit = Callable[[str], Callable[[Callable[..., Any]], Callable[..., Any]]]
 
@@ -117,36 +131,150 @@ def build_v1_router(settings: Settings, limit: Limit) -> APIRouter:
             raise HTTPException(status_code=404, detail=_NOT_FOUND)
         return Response(status_code=204)
 
-    @router.post("/plans", response_model=PlanRecordV1, status_code=201, tags=["plans"])
+    # ── Planes ──────────────────────────────────────────────────────────────
+
+    @router.post("/plans", response_model=PlanV1, status_code=201, tags=["plans"])
     @limit(settings.rate_limit_plans)
-    def create_plan(request: Request, payload: PlanRequestV1, user: UserRecord = Depends(current_user)) -> PlanRecordV1:
-        try:
-            record = _service(request).create_plan(user, payload.as_of, _rid(request))
-        except NotFoundError:
-            raise HTTPException(status_code=409, detail="Create a profile before calculating a plan.")
-        return _plan_record(record)
+    def create_plan(
+        request: Request,
+        response: Response,
+        payload: PlanCreateV1,
+        user: UserRecord = Depends(current_user),
+        idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
+    ) -> PlanV1:
+        plan, replayed = _call(lambda: _planning(request).create_plan(user, payload.as_of, idempotency_key, _rid(request)))
+        _mark_replay(response, replayed)
+        return plan
 
-    @router.get("/plans", response_model=list[PlanSummaryV1], tags=["plans"])
+    @router.get("/plans", response_model=Page[PlanSummaryV1], tags=["plans"])
     @limit(settings.rate_limit_default)
-    def list_plans(request: Request, user: UserRecord = Depends(current_user), limit_: int = Query(20, ge=1, le=50, alias="limit")) -> list[dict[str, Any]]:
-        return _service(request).list_plans(user, limit_)
+    def list_plans(
+        request: Request,
+        user: UserRecord = Depends(current_user),
+        limit_: int = Query(20, ge=1, le=50, alias="limit"),
+        cursor: str | None = Query(None, max_length=200),
+    ) -> Page[PlanSummaryV1]:
+        items, next_cursor = _call(lambda: _planning(request).list_plans(user, limit_, cursor))
+        return Page[PlanSummaryV1](items=items, next_cursor=next_cursor)
 
-    @router.get("/plans/{plan_id}", response_model=PlanRecordV1, tags=["plans"])
+    @router.get("/plans/current", response_model=CurrentPlanV1, tags=["plans"])
     @limit(settings.rate_limit_default)
-    def get_plan(request: Request, plan_id: str, user: UserRecord = Depends(current_user)) -> PlanRecordV1:
-        try:
-            return _plan_record(_service(request).get_plan(user, plan_id))
-        except NotFoundError:
-            raise HTTPException(status_code=404, detail=_NOT_FOUND)
+    def current_plan(request: Request, user: UserRecord = Depends(current_user)) -> CurrentPlanV1:
+        return _call(lambda: _planning(request).current_plan(user))
+
+    @router.get("/plans/{plan_id}", response_model=PlanV1, tags=["plans"])
+    @limit(settings.rate_limit_default)
+    def get_plan(request: Request, plan_id: str, user: UserRecord = Depends(current_user)) -> PlanV1:
+        return _call(lambda: _planning(request).get_plan(user, plan_id))
+
+    @router.get("/plans/{plan_id}/reproduction", response_model=ReproductionV1, tags=["plans"])
+    @limit(settings.rate_limit_plans)
+    def reproduce_plan(request: Request, plan_id: str, user: UserRecord = Depends(current_user)) -> ReproductionV1:
+        return _call(lambda: _planning(request).reproduce(user, plan_id))
 
     @router.delete("/plans/{plan_id}", status_code=204, tags=["plans"])
     @limit(settings.rate_limit_writes)
     def delete_plan(request: Request, plan_id: str, user: UserRecord = Depends(current_user)) -> Response:
-        try:
-            _service(request).delete_plan(user, plan_id, _rid(request))
-        except NotFoundError:
-            raise HTTPException(status_code=404, detail=_NOT_FOUND)
+        _call(lambda: _planning(request).delete_plan(user, plan_id, _rid(request)))
         return Response(status_code=204)
+
+    # ── Escenarios ──────────────────────────────────────────────────────────
+
+    @router.post("/scenarios", response_model=ScenarioV1, status_code=201, tags=["scenarios"])
+    @limit(settings.rate_limit_plans)
+    def create_scenario(
+        request: Request,
+        response: Response,
+        payload: ScenarioCreateV1,
+        user: UserRecord = Depends(current_user),
+        idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
+    ) -> ScenarioV1:
+        scenario, replayed = _call(
+            lambda: _planning(request).create_scenario(user, payload.model_dump(mode="json"), idempotency_key, _rid(request))
+        )
+        _mark_replay(response, replayed)
+        return scenario
+
+    @router.get("/scenarios", response_model=Page[ScenarioSummaryV1], tags=["scenarios"])
+    @limit(settings.rate_limit_default)
+    def list_scenarios(
+        request: Request,
+        user: UserRecord = Depends(current_user),
+        limit_: int = Query(20, ge=1, le=50, alias="limit"),
+        cursor: str | None = Query(None, max_length=200),
+        plan_id: str | None = Query(None, max_length=36),
+    ) -> Page[ScenarioSummaryV1]:
+        items, next_cursor = _call(lambda: _planning(request).list_scenarios(user, limit_, cursor, plan_id))
+        return Page[ScenarioSummaryV1](items=items, next_cursor=next_cursor)
+
+    @router.get("/scenarios/{scenario_id}", response_model=ScenarioV1, tags=["scenarios"])
+    @limit(settings.rate_limit_default)
+    def get_scenario(request: Request, scenario_id: str, user: UserRecord = Depends(current_user)) -> ScenarioV1:
+        return _call(lambda: _planning(request).get_scenario(user, scenario_id))
+
+    @router.post("/scenarios/{scenario_id}/adoption", response_model=PlanV1, status_code=201, tags=["scenarios"])
+    @limit(settings.rate_limit_plans)
+    def adopt_scenario(
+        request: Request,
+        response: Response,
+        scenario_id: str,
+        user: UserRecord = Depends(current_user),
+        idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
+    ) -> PlanV1:
+        plan, replayed = _call(lambda: _planning(request).adopt(user, scenario_id, idempotency_key, _rid(request)))
+        _mark_replay(response, replayed)
+        return plan
+
+    @router.delete("/scenarios/{scenario_id}", status_code=204, tags=["scenarios"])
+    @limit(settings.rate_limit_writes)
+    def delete_scenario(request: Request, scenario_id: str, user: UserRecord = Depends(current_user)) -> Response:
+        _call(lambda: _planning(request).delete_scenario(user, scenario_id))
+        return Response(status_code=204)
+
+    # ── Avances y revisión mensual ──────────────────────────────────────────
+
+    @router.post("/progress", response_model=ProgressEntryV1, status_code=201, tags=["progress"])
+    @limit(settings.rate_limit_writes)
+    def record_progress(
+        request: Request,
+        response: Response,
+        payload: ProgressCreateV1,
+        user: UserRecord = Depends(current_user),
+        idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
+    ) -> ProgressEntryV1:
+        entry, replayed = _call(
+            lambda: _planning(request).record_progress(user, payload.model_dump(mode="json"), idempotency_key, _rid(request))
+        )
+        _mark_replay(response, replayed)
+        return entry
+
+    @router.get("/progress", response_model=Page[ProgressEntryV1], tags=["progress"])
+    @limit(settings.rate_limit_default)
+    def list_progress(
+        request: Request,
+        user: UserRecord = Depends(current_user),
+        limit_: int = Query(20, ge=1, le=50, alias="limit"),
+        cursor: str | None = Query(None, max_length=200),
+        goal_id: str | None = Query(None, max_length=36),
+        period: str | None = Query(None, pattern=r"^\d{4}-(0[1-9]|1[0-2])$"),
+    ) -> Page[ProgressEntryV1]:
+        items, next_cursor = _call(lambda: _planning(request).list_progress(user, limit_, cursor, goal_id, period))
+        return Page[ProgressEntryV1](items=items, next_cursor=next_cursor)
+
+    @router.delete("/progress/{entry_id}", status_code=204, tags=["progress"])
+    @limit(settings.rate_limit_writes)
+    def delete_progress(request: Request, entry_id: str, user: UserRecord = Depends(current_user)) -> Response:
+        _call(lambda: _planning(request).delete_progress(user, entry_id, _rid(request)))
+        return Response(status_code=204)
+
+    @router.get("/reviews/{period}", response_model=MonthlyReviewV1, tags=["progress"])
+    @limit(settings.rate_limit_default)
+    def monthly_review(
+        request: Request,
+        user: UserRecord = Depends(current_user),
+        period: str = Path(pattern=r"^\d{4}-(0[1-9]|1[0-2])$"),
+    ) -> MonthlyReviewV1:
+        return _call(lambda: _planning(request).review(user, period))
 
     @router.post("/knowledge/query", response_model=KnowledgeAnswerV1, tags=["knowledge"])
     @limit(settings.rate_limit_query)
@@ -157,11 +285,27 @@ def build_v1_router(settings: Settings, limit: Limit) -> APIRouter:
     return router
 
 
-def _plan_record(record: dict[str, Any]) -> PlanRecordV1:
-    return PlanRecordV1(
-        id=record["id"],
-        as_of=record["as_of"],
-        policy_version=record["policy_version"],
-        created_at=record["created_at"],
-        plan=record["result"],
-    )
+def _planning(request: Request) -> PlanningService:
+    return request.app.state.container.planning
+
+
+def _mark_replay(response: Response, replayed: bool) -> None:
+    if replayed:
+        response.headers["Idempotent-Replayed"] = "true"
+
+
+_BAD_REQUEST_CODES = {"idempotency_key_required", "idempotency_key_invalid"}
+
+
+def _call(fn: Callable[[], Any]) -> Any:
+    """Traduzco errores de dominio a respuestas con un código estable para el cliente."""
+    try:
+        return fn()
+    except NotFoundError:
+        raise ApiProblem(404, "not_found", _NOT_FOUND)
+    except ConflictError as exc:
+        raise ApiProblem(409, exc.code, exc.message)
+    except ValidationProblem as exc:
+        raise ApiProblem(400 if exc.code in _BAD_REQUEST_CODES else 422, exc.code, exc.message)
+    except InvalidCursorError:
+        raise ApiProblem(400, "invalid_cursor", "The cursor is not valid. Request the first page again.")

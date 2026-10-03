@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from tests.v1_payloads import goal_v1, profile_v1
+from tests.v1_payloads import idem, goal_v1, profile_v1
 
 
 def test_negative_query_without_token_returns_401(client):
@@ -12,7 +12,7 @@ def test_negative_query_without_token_returns_401(client):
 
 
 def test_negative_plan_without_profile_returns_409(client, auth):
-    res = client.post("/v1/plans", json={}, headers=auth("missing-profile"))
+    res = client.post("/v1/plans", json={}, headers=idem(auth("missing-profile")))
     assert res.status_code == 409
 
 

@@ -8,12 +8,9 @@ from typing import Any
 
 from app.core.config import Settings
 from app.core.observability import log_event
-from app.data.accounts import AuditRepository, GoalRepository, PlanRepository, ProfileRepository, UserRecord
+from app.data.accounts import AuditRepository, GoalRepository, ProfileRepository, UserRecord
 from app.data.documents import PublicCorpusRepository
 from app.data.privacy import PrivacyRepository
-from app.finance.adapters import planning_profile_from_v1, snapshot_from_profile
-from app.finance.planning import build_plan, run_scenarios
-from app.finance.serialization import plan_to_dict
 from app.rag.retrieval import build_context, retrieve
 from app.rag.vector_store import VectorStoreBundle
 from app.reasoning.engine import extractive_answer
@@ -64,7 +61,6 @@ class AccountService:
     settings: Settings
     profiles: ProfileRepository
     goals: GoalRepository
-    plans: PlanRepository
     audit: AuditRepository
     privacy: PrivacyRepository
 
@@ -116,39 +112,6 @@ class AccountService:
             raise NotFoundError("goal")
         self._audit(user, "goal.delete", "goal", "success", goal_id, request_id)
 
-    # Planes
-    def create_plan(self, user: UserRecord, as_of: date | None, request_id: str | None) -> dict[str, Any]:
-        stored = self.profiles.get(user.id)
-        if stored is None:
-            raise NotFoundError("profile")
-        goal_rows = self.goals.list(user.id)
-        as_of = as_of or today_utc()
-        planning_profile = planning_profile_from_v1(stored["data"], goal_rows)
-        snapshot = snapshot_from_profile(planning_profile, as_of)
-        plan = build_plan(snapshot)
-        result = plan_to_dict(plan, run_scenarios(snapshot))
-        # Guardo las entradas mínimas para reproducir el plan con la misma política.
-        inputs = {"profile": stored["data"], "goals": [_json_goal(g) for g in goal_rows], "as_of": as_of.isoformat()}
-        record = self.plans.create(user.id, as_of=as_of, policy_version=plan.policy_version, inputs=inputs, result=result)
-        self._audit(user, "plan.create", "plan", "success", record["id"], request_id)
-        log_event("plan_created", request_id=request_id, user_id=user.id, policy_version=plan.policy_version)
-        return record
-
-    def list_plans(self, user: UserRecord, limit: int) -> list[dict[str, Any]]:
-        return self.plans.list(user.id, min(limit, self.settings.max_plans_listed))
-
-    def get_plan(self, user: UserRecord, plan_id: str) -> dict[str, Any]:
-        plan = self.plans.get(user.id, plan_id)
-        if plan is None:
-            raise NotFoundError("plan")
-        return plan
-
-    def delete_plan(self, user: UserRecord, plan_id: str, request_id: str | None) -> None:
-        if not self.plans.delete(user.id, plan_id):
-            self._audit(user, "plan.delete", "plan", "not_found", None, request_id)
-            raise NotFoundError("plan")
-        self._audit(user, "plan.delete", "plan", "success", plan_id, request_id)
-
     # Privacidad
     def export(self, user: UserRecord, request_id: str | None) -> dict[str, Any]:
         self._audit(user, "account.export", "account", "success", None, request_id)
@@ -164,17 +127,6 @@ class AccountService:
         )
         log_event("account_deleted", request_id=request_id, receipt_id=result["receipt_id"])
         return result
-
-
-def _json_goal(row: dict[str, Any]) -> dict[str, Any]:
-    out = dict(row)
-    for key in ("target_amount", "saved_amount"):
-        out[key] = format(out[key], "f")
-    for key in ("target_date", "created_at", "updated_at"):
-        if out.get(key) is not None and hasattr(out[key], "isoformat"):
-            out[key] = out[key].isoformat()
-    out.pop("user_id", None)
-    return out
 
 
 @dataclass(frozen=True)

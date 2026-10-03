@@ -15,6 +15,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import Response
 
+from app.api.errors import ApiProblem
 from app.api.v1 import build_v1_router
 from app.auth.tokens import JwksCache, JwksSource, TokenVerifier, build_jwks_source
 from app.core.config import Settings, settings as default_settings
@@ -126,6 +127,10 @@ def create_app(settings_override: Settings | None = None, *, jwks_source: JwksSo
         # No devuelvo el valor recibido: puede no ser serializable (NaN) o contener datos personales.
         errors = [{"loc": list(e.get("loc", ())), "msg": e.get("msg"), "type": e.get("type")} for e in exc.errors()]
         return JSONResponse(status_code=422, content={"detail": errors})
+
+    @app.exception_handler(ApiProblem)
+    async def api_problem_handler(request: Request, exc: ApiProblem) -> JSONResponse:
+        return JSONResponse(status_code=exc.status_code, content={"detail": exc.message, "code": exc.code})
 
     @app.exception_handler(Exception)
     async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:

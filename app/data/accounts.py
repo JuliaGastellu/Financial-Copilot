@@ -7,14 +7,14 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass
-from datetime import UTC, date, datetime
+from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any
 
 from sqlalchemy import Engine, delete, func, insert, select, update
 from sqlalchemy.exc import IntegrityError
 
-from app.db.schema import audit_events, goals, plans, profiles, users
+from app.db.schema import audit_events, goals, profiles, users
 
 PROFILE_SCHEMA_VERSION = 1
 
@@ -135,17 +135,25 @@ class GoalRepository:
         now = utc_now()
         goal_id = new_id()
         with self.engine.begin() as conn:
-            conn.execute(insert(goals).values(id=goal_id, user_id=owner_id, created_at=now, updated_at=now, **values))
+            conn.execute(
+                insert(goals).values(id=goal_id, user_id=owner_id, created_at=now, updated_at=now, saved_as_of=now, **values)
+            )
         stored = self.get(owner_id, goal_id)
         assert stored is not None
         return stored
 
     def update(self, owner_id: str, goal_id: str, values: dict[str, Any]) -> dict[str, Any] | None:
+        current = self.get(owner_id, goal_id)
+        if current is None:
+            return None
+        now = utc_now()
+        extra: dict[str, Any] = {"updated_at": now}
+        # Si cambia el ahorro declarado, asumo que ya incluye los aportes registrados hasta ahora.
+        if Decimal(str(values.get("saved_amount", current["saved_amount"]))) != current["saved_amount"]:
+            extra["saved_as_of"] = now
         with self.engine.begin() as conn:
             result = conn.execute(
-                update(goals)
-                .where(goals.c.id == goal_id, goals.c.user_id == owner_id)
-                .values(updated_at=utc_now(), **values)
+                update(goals).where(goals.c.id == goal_id, goals.c.user_id == owner_id).values(**extra, **values)
             )
             if result.rowcount == 0:
                 return None
@@ -154,54 +162,6 @@ class GoalRepository:
     def delete(self, owner_id: str, goal_id: str) -> bool:
         with self.engine.begin() as conn:
             result = conn.execute(delete(goals).where(goals.c.id == goal_id, goals.c.user_id == owner_id))
-            return result.rowcount > 0
-
-
-@dataclass(frozen=True)
-class PlanRepository:
-    engine: Engine
-
-    def create(self, owner_id: str, *, as_of: date, policy_version: str, inputs: dict[str, Any], result: dict[str, Any]) -> dict[str, Any]:
-        plan_id = new_id()
-        with self.engine.begin() as conn:
-            conn.execute(
-                insert(plans).values(
-                    id=plan_id,
-                    user_id=owner_id,
-                    as_of=as_of,
-                    policy_version=policy_version,
-                    inputs=inputs,
-                    result=result,
-                    created_at=utc_now(),
-                )
-            )
-        stored = self.get(owner_id, plan_id)
-        assert stored is not None
-        return stored
-
-    def get(self, owner_id: str, plan_id: str) -> dict[str, Any] | None:
-        with self.engine.connect() as conn:
-            row = conn.execute(select(plans).where(plans.c.id == plan_id, plans.c.user_id == owner_id)).mappings().first()
-            return dict(row) if row else None
-
-    def list(self, owner_id: str, limit: int) -> list[dict[str, Any]]:
-        with self.engine.connect() as conn:
-            rows = conn.execute(
-                select(plans.c.id, plans.c.as_of, plans.c.policy_version, plans.c.created_at)
-                .where(plans.c.user_id == owner_id)
-                .order_by(plans.c.created_at.desc(), plans.c.id)
-                .limit(limit)
-            ).mappings()
-            return [dict(r) for r in rows]
-
-    def list_full(self, owner_id: str) -> list[dict[str, Any]]:
-        with self.engine.connect() as conn:
-            rows = conn.execute(select(plans).where(plans.c.user_id == owner_id).order_by(plans.c.created_at)).mappings()
-            return [dict(r) for r in rows]
-
-    def delete(self, owner_id: str, plan_id: str) -> bool:
-        with self.engine.begin() as conn:
-            result = conn.execute(delete(plans).where(plans.c.id == plan_id, plans.c.user_id == owner_id))
             return result.rowcount > 0
 
 

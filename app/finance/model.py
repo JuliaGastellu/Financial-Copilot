@@ -74,6 +74,7 @@ class Goal:
     priority: Priority = "medium"
     target_date: date | None = None
     horizon_months: int | None = None
+    goal_id: str | None = None
 
 
 @dataclass(frozen=True)

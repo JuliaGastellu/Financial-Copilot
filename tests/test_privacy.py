@@ -13,13 +13,13 @@ from app.data.accounts import utc_now
 from app.data.privacy import PrivacyRepository, subject_hash, privacy_key
 from app.db.engine import build_engine
 from app.db.schema import audit_events, deletion_receipts, goals, plans, profiles, users
-from tests.v1_payloads import goal_v1, profile_v1
+from tests.v1_payloads import idem, goal_v1, profile_v1
 
 
 def _seed(client, headers) -> dict:
     assert client.put("/v1/profile", json=profile_v1(), headers=headers).status_code == 200
     goal = client.post("/v1/goals", json=goal_v1("Private goal", 4321), headers=headers).json()
-    plan = client.post("/v1/plans", json={}, headers=headers).json()
+    plan = client.post("/v1/plans", json={}, headers=idem(headers)).json()
     return {"goal": goal, "plan": plan}
 
 
@@ -58,7 +58,9 @@ def test_delete_removes_personal_rows_and_returns_evidence(client, auth):
     res = client.delete("/v1/me", headers=h)
     assert res.status_code == 200
     evidence = res.json()["evidence"]
-    assert evidence["relational_database"]["deleted"] == {"plans": 1, "goals": 1, "profiles": 1, "users": 1}
+    assert evidence["relational_database"]["deleted"] == {
+        "idempotency_keys": 1, "progress_entries": 0, "scenarios": 0, "plans": 1, "goals": 1, "profiles": 1, "users": 1,
+    }
     assert set(evidence["relational_database"]["remaining"].values()) == {0}
     assert evidence["vector_store"]["personal_records"] == 0
     assert "backups" in evidence and "application_logs" in evidence
@@ -100,10 +102,15 @@ def test_retention_removes_only_expired_records(client, auth):
     container = client.app.state.container
     repo: PrivacyRepository = container.privacy
     settings = container.settings
-    assert repo.apply_retention() == {"plans": 0, "audit_events": 0, "deletion_receipts": 0}
+    # Una segunda versión deja la primera como reemplazada.
+    assert client.post("/v1/plans", json={}, headers=idem(h)).status_code == 201
+    assert repo.apply_retention() == {"plans": 0, "audit_events": 0, "deletion_receipts": 0, "idempotency_keys": 0}
     later = utc_now() + timedelta(days=settings.plan_retention_days + 1)
     removed = repo.apply_retention(now=later)
+    # Solo borro la versión reemplazada; el plan vigente se conserva.
     assert removed["plans"] == 1
+    assert removed["idempotency_keys"] == 2
+    assert client.get("/v1/plans/current", headers=h).status_code == 200
     assert removed["audit_events"] >= 3
     # Perfil y metas siguen hasta que la persona los borre.
     assert client.get("/v1/profile", headers=h).status_code == 200

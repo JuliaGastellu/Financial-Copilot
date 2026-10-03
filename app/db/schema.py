@@ -18,6 +18,7 @@ from sqlalchemy import (
     Table,
     Text,
     UniqueConstraint,
+    text,
 )
 from sqlalchemy.dialects.postgresql import JSONB
 
@@ -69,6 +70,8 @@ goals = Table(
     Column("priority", String(10), nullable=False),
     Column("target_date", Date, nullable=True),
     Column("horizon_months", Integer, nullable=True),
+    # Fecha desde la que el ahorro declarado ya incluye los aportes registrados.
+    Column("saved_as_of", DateTime(timezone=True), nullable=False),
     Column("created_at", DateTime(timezone=True), nullable=False),
     Column("updated_at", DateTime(timezone=True), nullable=False),
     CheckConstraint("target_amount >= 0", name="target_non_negative"),
@@ -84,13 +87,89 @@ plans = Table(
     metadata,
     Column("id", String(36), primary_key=True),
     Column("user_id", String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False),
+    Column("version", Integer, nullable=False),
+    Column("status", String(12), nullable=False),
+    Column("source", String(12), nullable=False),
+    Column("source_scenario_id", String(36), nullable=True),
     Column("as_of", Date, nullable=False),
     Column("policy_version", String(40), nullable=False),
+    Column("engine_version", String(40), nullable=False),
+    Column("snapshot_schema_version", Integer, nullable=False),
+    Column("inputs_fingerprint", String(64), nullable=False),
     Column("inputs", JsonType, nullable=False),
     Column("result", JsonType, nullable=False),
     Column("created_at", DateTime(timezone=True), nullable=False),
+    Column("superseded_at", DateTime(timezone=True), nullable=True),
+    CheckConstraint("status IN ('active', 'superseded')", name="status_valid"),
+    CheckConstraint("source IN ('baseline', 'scenario', 'legacy')", name="source_valid"),
+    CheckConstraint("version >= 1", name="version_positive"),
+    UniqueConstraint("user_id", "version", name="uq_plans_user_id_version"),
     Index("ix_plans_user_id_created_at", "user_id", "created_at"),
     Index("ix_plans_created_at", "created_at"),
+    Index(
+        "uq_plans_one_active_per_user",
+        "user_id",
+        unique=True,
+        postgresql_where=text("status = 'active'"),
+        sqlite_where=text("status = 'active'"),
+    ),
+)
+
+# Escenarios: simulaciones sobre el snapshot de un plan. Nunca modifican ese plan.
+scenarios = Table(
+    "scenarios",
+    metadata,
+    Column("id", String(36), primary_key=True),
+    Column("user_id", String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False),
+    Column("base_plan_id", String(36), ForeignKey("plans.id", ondelete="CASCADE"), nullable=False),
+    Column("name", String(80), nullable=False),
+    Column("income_change", Numeric(6, 4), nullable=False),
+    Column("expense_change", Numeric(6, 4), nullable=False),
+    Column("annual_return", Numeric(6, 4), nullable=False),
+    Column("status", String(12), nullable=False),
+    Column("adopted_plan_id", String(36), nullable=True),
+    Column("result", JsonType, nullable=False),
+    Column("created_at", DateTime(timezone=True), nullable=False),
+    Column("adopted_at", DateTime(timezone=True), nullable=True),
+    CheckConstraint("status IN ('simulated', 'adopted')", name="status_valid"),
+    CheckConstraint("income_change >= -1 AND income_change <= 5", name="income_change_range"),
+    CheckConstraint("expense_change >= -1 AND expense_change <= 5", name="expense_change_range"),
+    CheckConstraint("annual_return > -1 AND annual_return <= 1", name="annual_return_range"),
+    Index("ix_scenarios_user_id_created_at", "user_id", "created_at"),
+    Index("ix_scenarios_base_plan_id", "base_plan_id"),
+)
+
+# Avances registrados por meta y mes. `source` indica de dónde salió el dinero.
+progress_entries = Table(
+    "progress_entries",
+    metadata,
+    Column("id", String(36), primary_key=True),
+    Column("user_id", String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False),
+    Column("goal_id", String(36), ForeignKey("goals.id", ondelete="CASCADE"), nullable=False),
+    Column("period", Date, nullable=False),
+    Column("amount", Money, nullable=False),
+    Column("currency", String(3), nullable=False),
+    Column("source", String(20), nullable=False),
+    Column("recorded_at", DateTime(timezone=True), nullable=False),
+    CheckConstraint("amount > 0", name="amount_positive"),
+    CheckConstraint("source IN ('monthly_surplus', 'existing_balance')", name="source_valid"),
+    CheckConstraint("length(currency) = 3", name="currency_iso"),
+    Index("ix_progress_entries_user_id_period", "user_id", "period"),
+    Index("ix_progress_entries_goal_id_recorded_at", "goal_id", "recorded_at"),
+)
+
+# Claves de idempotencia por cuenta: un reintento devuelve el recurso creado originalmente.
+idempotency_keys = Table(
+    "idempotency_keys",
+    metadata,
+    Column("user_id", String(36), ForeignKey("users.id", ondelete="CASCADE"), primary_key=True),
+    Column("key", String(128), primary_key=True),
+    Column("operation", String(40), nullable=False),
+    Column("request_hash", String(64), nullable=False),
+    Column("resource_type", String(20), nullable=False),
+    Column("resource_id", String(36), nullable=False),
+    Column("created_at", DateTime(timezone=True), nullable=False),
+    Index("ix_idempotency_keys_created_at", "created_at"),
 )
 
 # Auditoría mínima: nunca guardo importes, nombres de metas ni texto financiero.
@@ -151,4 +230,4 @@ chunks = Table(
     Index("ix_chunks_corpus", "corpus"),
 )
 
-PERSONAL_TABLES = ("plans", "goals", "profiles", "users")
+PERSONAL_TABLES = ("idempotency_keys", "progress_entries", "scenarios", "plans", "goals", "profiles", "users")

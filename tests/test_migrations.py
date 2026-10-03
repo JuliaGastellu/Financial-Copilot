@@ -92,3 +92,47 @@ def test_concurrent_upgrades_are_serialized_on_postgres(database_url) -> None:
         with admin.connect() as conn:
             conn.execute(text("DROP DATABASE copilot_race_check"))
         admin.dispose()
+
+
+def test_revision_ids_fit_alembic_version_column() -> None:
+    from alembic.script import ScriptDirectory
+
+    from app.db.engine import alembic_config
+
+    script = ScriptDirectory.from_config(alembic_config("sqlite://"))
+    # alembic_version.version_num es VARCHAR(32) en PostgreSQL.
+    assert all(len(rev.revision) <= 32 for rev in script.walk_revisions())
+
+
+def test_legacy_plans_are_versioned_by_migration_0002(database_url) -> None:
+    from datetime import timedelta
+
+    from sqlalchemy import text
+
+    downgrade(database_url, "base")
+    upgrade(database_url, "0001_accounts_and_planning")
+    engine = build_engine(database_url)
+    now = utc_now()
+    try:
+        with engine.begin() as conn:
+            conn.execute(text("INSERT INTO users VALUES ('legacy-u', 'i', 'legacy', :n, :n)"), {"n": now})
+            for i, pid in enumerate(("old-1", "old-2", "old-3")):
+                conn.execute(
+                    text(
+                        "INSERT INTO plans (id, user_id, as_of, policy_version, inputs, result, created_at) "
+                        "VALUES (:id, 'legacy-u', '2026-09-01', 'x', '{}', '{}', :t)"
+                    ),
+                    {"id": pid, "t": now + timedelta(seconds=i)},
+                )
+        upgrade(database_url)
+        with engine.connect() as conn:
+            rows = conn.execute(text("SELECT id, version, status, source FROM plans ORDER BY version")).all()
+        assert [tuple(r) for r in rows] == [
+            ("old-1", 1, "superseded", "legacy"),
+            ("old-2", 2, "superseded", "legacy"),
+            ("old-3", 3, "active", "legacy"),
+        ]
+    finally:
+        engine.dispose()
+        downgrade(database_url, "base")
+        upgrade(database_url)

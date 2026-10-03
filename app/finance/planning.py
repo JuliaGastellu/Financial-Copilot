@@ -52,6 +52,7 @@ class GoalPlan:
     months_left: int | None
     deadline_source: Literal["target_date", "horizon_months"] | None
     months_to_goal: int | None
+    goal_id: str | None = None
 
 
 @dataclass(frozen=True)
@@ -238,6 +239,7 @@ def _allocate_goals(
                 months_left=i["months_left"],
                 deadline_source=i["source"],
                 months_to_goal=_ceil_div_months(rest, monthly_alloc[key]),
+                goal_id=goal.goal_id,
             )
         )
     return plans, stock_left, monthly_left

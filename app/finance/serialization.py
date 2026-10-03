@@ -70,6 +70,7 @@ def budget_to_dict(b: CurrencyBudget) -> dict[str, Any]:
 
 def goal_to_dict(g: GoalPlan) -> dict[str, Any]:
     return {
+        "goal_id": g.goal_id,
         "goal_name": g.name,
         "currency": g.currency,
         "priority": g.priority,
@@ -111,6 +112,7 @@ def scenario_to_dict(result: ScenarioResult) -> dict[str, Any]:
         ],
         "goals": [
             {
+                "goal_id": g.goal_id,
                 "goal_name": g.name,
                 "currency": g.currency,
                 "status": g.status,

@@ -7,7 +7,7 @@ import json
 import pytest
 from fastapi.routing import APIRoute
 
-from tests.v1_payloads import goal_v1, money, profile_v1
+from tests.v1_payloads import idem, goal_v1, money, profile_v1
 
 PUBLIC_ROUTES = {("GET", "/health"), ("GET", "/ready"), ("GET", "/opportunities"), ("GET", "/")}
 
@@ -17,7 +17,7 @@ def alice(client, auth):
     h = auth("alice")
     assert client.put("/v1/profile", json=profile_v1(), headers=h).status_code == 200
     goal = client.post("/v1/goals", json=goal_v1("Alice secret goal", 4321), headers=h).json()
-    plan = client.post("/v1/plans", json={}, headers=h).json()
+    plan = client.post("/v1/plans", json={}, headers=idem(h)).json()
     return {"headers": h, "goal_id": goal["id"], "plan_id": plan["id"]}
 
 
@@ -68,7 +68,7 @@ def test_b_cannot_read_or_change_a_resources(client, auth, alice):
     goal, plan = alice["goal_id"], alice["plan_id"]
     assert client.get("/v1/profile", headers=b).status_code == 404
     assert client.get("/v1/goals", headers=b).json() == []
-    assert client.get("/v1/plans", headers=b).json() == []
+    assert client.get("/v1/plans", headers=b).json()["items"] == []
     for method, path, body in (
         ("GET", f"/v1/goals/{goal}", None),
         ("PUT", f"/v1/goals/{goal}", goal_v1("hijack", 1)),
@@ -78,7 +78,7 @@ def test_b_cannot_read_or_change_a_resources(client, auth, alice):
     ):
         res = client.request(method, path, json=body, headers=b)
         assert res.status_code == 404, (method, path)
-        assert res.json() == {"detail": "Not found."}
+        assert res.json()["detail"] == "Not found."
     # A conserva todo intacto.
     a = alice["headers"]
     assert client.get(f"/v1/goals/{goal}", headers=a).json()["name"] == "Alice secret goal"
@@ -88,7 +88,7 @@ def test_b_cannot_read_or_change_a_resources(client, auth, alice):
 def test_b_plan_and_export_never_include_a_data(client, auth, alice):
     b = auth("bob")
     client.put("/v1/profile", json=profile_v1(assets=[]), headers=b)
-    plan = client.post("/v1/plans", json={}, headers=b).json()
+    plan = client.post("/v1/plans", json={}, headers=idem(b)).json()
     assert "Alice secret goal" not in json.dumps(plan)
     export = client.get("/v1/me/export", headers=b)
     assert export.status_code == 200
@@ -110,7 +110,7 @@ def test_identity_fields_in_payload_are_rejected(client, auth, field):
     h = auth("carol")
     assert client.put("/v1/profile", json={**profile_v1(), field: "alice"}, headers=h).status_code == 422
     assert client.post("/v1/goals", json={**goal_v1(), field: "alice"}, headers=h).status_code == 422
-    assert client.post("/v1/plans", json={field: "alice"}, headers=h).status_code == 422
+    assert client.post("/v1/plans", json={field: "alice"}, headers=idem(h)).status_code == 422
 
 
 def test_identity_headers_and_query_params_are_ignored(client, auth, alice):
