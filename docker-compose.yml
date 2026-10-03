@@ -5,10 +5,10 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - DATABASE_URL=/app/data/copilot.db
-      - CHROMA_PATH=/app/data/chroma
+      - DATA_DIR=/app/data
+      - SQLITE_PATH=/app/data/app.db
+      - CHROMA_DIR=/app/data/chroma
       - OFFLINE_MODE=true
-      - LOG_LEVEL=INFO
     volumes:
       - copilot_data:/app/data
     restart: unless-stopped
