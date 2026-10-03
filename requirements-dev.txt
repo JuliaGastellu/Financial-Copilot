@@ -1,0 +1,5 @@
+# Dependencias de pruebas. Para instalar el conjunto completo uso requirements-dev.lock.
+-r requirements.txt
+pytest==9.0.3
+# TestClient de FastAPI necesita httpx.
+httpx==0.28.1
