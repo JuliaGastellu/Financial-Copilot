@@ -79,4 +79,6 @@ Conservo los hallazgos anteriores como registro de la revisión. En esta etapa c
 
 Busqué en todo el historial local patrones habituales de claves (proveedor de modelos, nube, tokens de GitHub y claves privadas) y no obtuve coincidencias. No encontré motivos para rotar secretos. El commit con los binarios ya está en el remoto; si el repositorio es o fue público, evalúo una revisión del historial publicado, aunque los metadatos no indican contenido documental.
 
-Siguen pendientes los demás hallazgos P0 y P1, incluidos autenticación, aislamiento de documentos, cálculo de capital y presupuesto, Decimal y moneda, probabilidades heurísticas y el uso del modelo de lenguaje para decidir recomendaciones. Tampoco verifiqué `docker build`.
+Siguen pendientes los demás hallazgos P0 y P1, incluidos autenticación, aislamiento de documentos, cálculo de capital y presupuesto, Decimal y moneda, probabilidades heurísticas y el uso del modelo de lenguaje para decidir recomendaciones.
+
+Después construí la imagen Docker sin errores y la levanté en modo offline: `/health` respondió 200 y el chequeo de salud quedó en `healthy`. Eso no resuelve la persistencia durable ni el uso de dos workers con almacenamiento local.

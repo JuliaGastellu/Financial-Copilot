@@ -57,7 +57,7 @@ Mantengo API en `app/main.py`, casos de uso en `app/services/`, contratos en `ap
 
 ## Verificación
 
-Ejecuto la suite con `python -m pytest -q`. El 3 de octubre de 2026 instalé `requirements-dev.lock` en un entorno limpio de Python 3.11 en Windows y obtuve 46 pruebas aprobadas. No verifiqué la construcción de la imagen Docker porque el servicio de Docker no estaba disponible en mi equipo; sí comprobé que el lock se resuelve con paquetes binarios para Linux y Python 3.11.
+Ejecuto la suite con `python -m pytest -q`. El 3 de octubre de 2026 instalé `requirements-dev.lock` en un entorno limpio de Python 3.11 en Windows y obtuve 46 pruebas aprobadas. Ese mismo día construí la imagen Docker sin errores. Levanté un contenedor en modo offline con las variables de Compose: `/health` respondió 200, el chequeo de salud quedó en `healthy`, la aplicación creó SQLite y Chroma en `/app/data` y la imagen no incluía datos locales. No ejecuté la suite dentro del contenedor.
 
 Las pruebas de fragmentación ejecutan cada caso en un proceso aislado con tiempo máximo, para detectar bucles en el divisor alternativo.
 
