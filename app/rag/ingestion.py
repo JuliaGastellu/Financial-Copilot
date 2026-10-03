@@ -13,6 +13,30 @@ class IngestionResult:
     chunks_indexed: int
 
 
+def split_fixed_window(text: str, size: int, overlap: int) -> list[str]:
+    """Divido el texto en ventanas fijas con solapamiento.
+
+    Avanzo siempre al menos un carácter por iteración y corto al alcanzar el
+    final del texto, de modo que la función termina para cualquier entrada.
+    """
+    if size < 1:
+        raise ValueError("size must be at least 1")
+    overlap = max(0, min(overlap, size - 1))
+    step = size - overlap
+    chunks: list[str] = []
+    start = 0
+    length = len(text)
+    while start < length:
+        end = min(length, start + size)
+        chunk = text[start:end].strip()
+        if chunk:
+            chunks.append(chunk)
+        if end >= length:
+            break
+        start += step
+    return chunks
+
+
 def chunk_text(settings: Settings, text: str) -> list[str]:
     try:
         from langchain_text_splitters import RecursiveCharacterTextSplitter
@@ -24,19 +48,12 @@ def chunk_text(settings: Settings, text: str) -> list[str]:
         )
         return splitter.split_text(text)
     except Exception:
-        chunks: list[str] = []
-        size = max(200, settings.rag_chunk_size)
-        overlap = max(0, min(settings.rag_chunk_overlap, size - 1))
-        pos = 0
-        while pos < len(text):
-            end = min(len(text), pos + size)
-            chunk = text[pos:end].strip()
-            if chunk:
-                chunks.append(chunk)
-            pos = end - overlap
-            if pos < 0:
-                pos = end
-        return chunks
+        # Uso ventanas fijas cuando el divisor principal no está disponible.
+        return split_fixed_window(
+            text,
+            size=max(200, settings.rag_chunk_size),
+            overlap=settings.rag_chunk_overlap,
+        )
 
 
 def ingest_document(
