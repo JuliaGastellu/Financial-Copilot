@@ -115,6 +115,12 @@ class PlanningService:
         if stored is None:
             raise ConflictError("profile_required", "Create a profile before calculating a plan.")
         profile = ProfileV1.model_validate(stored["data"])
+        unknown = [f for f in ("monthly_income", "monthly_expenses") if getattr(profile.provenance, f) == "unknown"]
+        if unknown:
+            raise ConflictError(
+                "required_data_unknown",
+                "Monthly income and expenses are needed to calculate a plan. An estimate marked as such is enough.",
+            )
         # Snapshot mínimo: sin nombres de activos, deudas o compromisos, país ni tolerancia al riesgo.
         minimal = profile.model_copy(
             update={
@@ -476,6 +482,24 @@ class PlanningService:
             raise NotFoundError("scenario")
         if outcome == "adopted":
             raise ConflictError("scenario_adopted", "An adopted scenario is part of the plan history and cannot be deleted.")
+
+    # ── Metas con idempotencia ─────────────────────────────────────────────────
+
+    def create_goal_idempotent(
+        self, user: UserRecord, values: dict[str, Any], payload: dict[str, Any], key: str, max_goals: int, request_id: str | None
+    ) -> tuple[dict[str, Any], bool]:
+        def create(conn: Connection) -> tuple[str, str]:
+            if self.goals.count(user.id) >= max_goals:
+                raise ConflictError("goal_limit", "Goal limit reached.")
+            return "goal", self.goals.create_in(conn, user.id, values)
+
+        goal_id, replayed = self._idempotent(user, key, "goal.create", payload, create)
+        if not replayed:
+            self.audit.record(user_id=user.id, action="goal.create", resource_type="goal", outcome="success", resource_id=goal_id, request_id=request_id)
+        goal = self.goals.get(user.id, goal_id)
+        if goal is None:
+            raise NotFoundError("goal")
+        return goal, replayed
 
     # ── Avances y revisión ─────────────────────────────────────────────────────
 

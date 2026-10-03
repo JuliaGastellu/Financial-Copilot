@@ -1,0 +1,1125 @@
+{
+  "generated_on": "2026-10-03",
+  "profile": {
+    "profile": {
+      "currency": "ARS",
+      "country": null,
+      "risk_tolerance": "medium",
+      "cashflows": [
+        {
+          "currency": "ARS",
+          "monthly_income": "1800000.00",
+          "monthly_expenses": "1250000.00",
+          "minimum_payments_included_in_expenses": true
+        }
+      ],
+      "assets": [
+        {
+          "name": "Cuenta",
+          "category": "cash",
+          "liquidity": "high",
+          "value": {
+            "amount": "4200000.00",
+            "currency": "ARS"
+          }
+        }
+      ],
+      "liabilities": [],
+      "commitments": [],
+      "emergency_reserve_months": "3",
+      "provenance": {
+        "monthly_income": "estimated",
+        "monthly_expenses": "reported",
+        "balances": "reported",
+        "reserve_months": "reported"
+      }
+    },
+    "updated_at": "2026-10-03T17:25:10.519876"
+  },
+  "goals": [
+    {
+      "id": "4ffab66a-2e51-4446-a438-a9418f9911a7",
+      "name": "Fondo para mudanza",
+      "target": {
+        "amount": "1500000.00",
+        "currency": "ARS"
+      },
+      "saved": {
+        "amount": "0.00",
+        "currency": "ARS"
+      },
+      "priority": "high",
+      "target_date": null,
+      "horizon_months": 10,
+      "created_at": "2026-10-03T17:25:10.558185",
+      "updated_at": "2026-10-03T17:25:10.558185"
+    },
+    {
+      "id": "ff8d9da5-15f7-4f32-9774-9e1707c00e1c",
+      "name": "Curso de idioma",
+      "target": {
+        "amount": "600000.00",
+        "currency": "ARS"
+      },
+      "saved": {
+        "amount": "0.00",
+        "currency": "ARS"
+      },
+      "priority": "medium",
+      "target_date": null,
+      "horizon_months": 6,
+      "created_at": "2026-10-03T17:25:10.586298",
+      "updated_at": "2026-10-03T17:25:10.586298"
+    }
+  ],
+  "current": {
+    "plan": {
+      "id": "261a4873-93eb-4ce3-bd28-5ef965e789e3",
+      "version": 1,
+      "status": "active",
+      "source": "baseline",
+      "source_scenario_id": null,
+      "as_of": "2026-10-01",
+      "policy_version": "2026-10-03.1",
+      "engine_version": "1.0.0",
+      "created_at": "2026-10-03T17:25:10.629260",
+      "superseded_at": null,
+      "reproducible": true,
+      "snapshot": {
+        "schema_version": 1,
+        "as_of": "2026-10-01",
+        "profile": {
+          "currency": "ARS",
+          "country": null,
+          "risk_tolerance": "medium",
+          "cashflows": [
+            {
+              "currency": "ARS",
+              "monthly_income": "1800000.00",
+              "monthly_expenses": "1250000.00",
+              "minimum_payments_included_in_expenses": true
+            }
+          ],
+          "assets": [
+            {
+              "name": "asset-1",
+              "category": "cash",
+              "liquidity": "high",
+              "value": {
+                "amount": "4200000.00",
+                "currency": "ARS"
+              }
+            }
+          ],
+          "liabilities": [],
+          "commitments": [],
+          "emergency_reserve_months": "3",
+          "provenance": {
+            "monthly_income": "estimated",
+            "monthly_expenses": "reported",
+            "balances": "reported",
+            "reserve_months": "reported"
+          }
+        },
+        "goals": [
+          {
+            "goal_id": "4ffab66a-2e51-4446-a438-a9418f9911a7",
+            "name": "Fondo para mudanza",
+            "target": {
+              "amount": "1500000.00",
+              "currency": "ARS"
+            },
+            "saved_declared": {
+              "amount": "0.00",
+              "currency": "ARS"
+            },
+            "contributions_since_declared": {
+              "amount": "0.00",
+              "currency": "ARS"
+            },
+            "priority": "high",
+            "target_date": null,
+            "horizon_months": 10
+          },
+          {
+            "goal_id": "ff8d9da5-15f7-4f32-9774-9e1707c00e1c",
+            "name": "Curso de idioma",
+            "target": {
+              "amount": "600000.00",
+              "currency": "ARS"
+            },
+            "saved_declared": {
+              "amount": "0.00",
+              "currency": "ARS"
+            },
+            "contributions_since_declared": {
+              "amount": "0.00",
+              "currency": "ARS"
+            },
+            "priority": "medium",
+            "target_date": null,
+            "horizon_months": 6
+          }
+        ],
+        "unreconciled_contributions": [],
+        "scenario": null
+      },
+      "result": {
+        "as_of": "2026-10-01",
+        "policy_version": "2026-10-03.1",
+        "base_currency": "ARS",
+        "reserve_months": "3",
+        "budgets": [
+          {
+            "currency": "ARS",
+            "monthly": {
+              "income": {
+                "amount": "1800000.00",
+                "currency": "ARS"
+              },
+              "expenses": {
+                "amount": "1250000.00",
+                "currency": "ARS"
+              },
+              "minimum_payments_total": {
+                "amount": "0.00",
+                "currency": "ARS"
+              },
+              "minimum_payments_added_to_outflow": {
+                "amount": "0.00",
+                "currency": "ARS"
+              },
+              "commitments": {
+                "amount": "0.00",
+                "currency": "ARS"
+              },
+              "outflow": {
+                "amount": "1250000.00",
+                "currency": "ARS"
+              },
+              "surplus": {
+                "amount": "550000.00",
+                "currency": "ARS"
+              },
+              "allocations": {
+                "emergency_reserve": {
+                  "amount": "0.00",
+                  "currency": "ARS"
+                },
+                "high_apr_debt": {
+                  "amount": "0.00",
+                  "currency": "ARS"
+                },
+                "goals": {
+                  "amount": "205000.00",
+                  "currency": "ARS"
+                }
+              },
+              "allocated_total": {
+                "amount": "205000.00",
+                "currency": "ARS"
+              },
+              "unassigned": {
+                "amount": "345000.00",
+                "currency": "ARS"
+              }
+            },
+            "current_balances": {
+              "liquid": {
+                "amount": "4200000.00",
+                "currency": "ARS"
+              },
+              "not_counted_as_available": {
+                "amount": "0.00",
+                "currency": "ARS"
+              },
+              "reserved_commitments": {
+                "amount": "0.00",
+                "currency": "ARS"
+              },
+              "goal_savings": {
+                "amount": "0.00",
+                "currency": "ARS"
+              },
+              "reserve_target": {
+                "amount": "3750000.00",
+                "currency": "ARS"
+              },
+              "reserve_held": {
+                "amount": "3750000.00",
+                "currency": "ARS"
+              },
+              "reserve_gap": {
+                "amount": "0.00",
+                "currency": "ARS"
+              },
+              "free_after_reserve": {
+                "amount": "450000.00",
+                "currency": "ARS"
+              },
+              "allocations": {
+                "high_apr_debt": {
+                  "amount": "0.00",
+                  "currency": "ARS"
+                },
+                "goals": {
+                  "amount": "450000.00",
+                  "currency": "ARS"
+                }
+              },
+              "allocated_total": {
+                "amount": "450000.00",
+                "currency": "ARS"
+              },
+              "unassigned": {
+                "amount": "0.00",
+                "currency": "ARS"
+              }
+            },
+            "debt": {
+              "total": {
+                "amount": "0.00",
+                "currency": "ARS"
+              },
+              "high_apr": {
+                "amount": "0.00",
+                "currency": "ARS"
+              },
+              "high_apr_count": 0
+            }
+          }
+        ],
+        "goals": [
+          {
+            "goal_id": "4ffab66a-2e51-4446-a438-a9418f9911a7",
+            "goal_name": "Fondo para mudanza",
+            "currency": "ARS",
+            "priority": "high",
+            "status": "on_track",
+            "target": {
+              "amount": "1500000.00",
+              "currency": "ARS"
+            },
+            "saved": {
+              "amount": "0.00",
+              "currency": "ARS"
+            },
+            "remaining": {
+              "amount": "1500000.00",
+              "currency": "ARS"
+            },
+            "one_time_allocation": {
+              "amount": "450000.00",
+              "currency": "ARS"
+            },
+            "monthly_allocation": {
+              "amount": "105000.00",
+              "currency": "ARS"
+            },
+            "required_monthly": {
+              "amount": "105000.00",
+              "currency": "ARS"
+            },
+            "shortfall_monthly": null,
+            "months_left": 10,
+            "deadline_source": "horizon_months",
+            "months_to_goal": 10
+          },
+          {
+            "goal_id": "ff8d9da5-15f7-4f32-9774-9e1707c00e1c",
+            "goal_name": "Curso de idioma",
+            "currency": "ARS",
+            "priority": "medium",
+            "status": "on_track",
+            "target": {
+              "amount": "600000.00",
+              "currency": "ARS"
+            },
+            "saved": {
+              "amount": "0.00",
+              "currency": "ARS"
+            },
+            "remaining": {
+              "amount": "600000.00",
+              "currency": "ARS"
+            },
+            "one_time_allocation": {
+              "amount": "0.00",
+              "currency": "ARS"
+            },
+            "monthly_allocation": {
+              "amount": "100000.00",
+              "currency": "ARS"
+            },
+            "required_monthly": {
+              "amount": "100000.00",
+              "currency": "ARS"
+            },
+            "shortfall_monthly": null,
+            "months_left": 6,
+            "deadline_source": "horizon_months",
+            "months_to_goal": 6
+          }
+        ],
+        "constraints": [],
+        "assumptions": [
+          "monthly_income_estimated",
+          "goal_horizon_months_counted_from_plan_date",
+          "only_high_liquidity_balances_count_as_available",
+          "goal_savings_are_held_within_declared_balances",
+          "reserve_target_uses_total_monthly_outflow",
+          "months_to_goal_assume_zero_return"
+        ],
+        "missing_data": [],
+        "scenarios": [
+          {
+            "name": "base",
+            "income_change": "0",
+            "expense_change": "0",
+            "annual_return": "0",
+            "budgets": [
+              {
+                "currency": "ARS",
+                "monthly_surplus": {
+                  "amount": "550000.00",
+                  "currency": "ARS"
+                },
+                "emergency_reserve": {
+                  "amount": "0.00",
+                  "currency": "ARS"
+                },
+                "high_apr_debt": {
+                  "amount": "0.00",
+                  "currency": "ARS"
+                },
+                "goals": {
+                  "amount": "205000.00",
+                  "currency": "ARS"
+                },
+                "unassigned": {
+                  "amount": "345000.00",
+                  "currency": "ARS"
+                }
+              }
+            ],
+            "goals": [
+              {
+                "goal_id": "4ffab66a-2e51-4446-a438-a9418f9911a7",
+                "goal_name": "Fondo para mudanza",
+                "currency": "ARS",
+                "status": "on_track",
+                "monthly_allocation": {
+                  "amount": "105000.00",
+                  "currency": "ARS"
+                },
+                "months_to_goal": 10,
+                "balance_at_deadline": {
+                  "amount": "1500000.00",
+                  "currency": "ARS"
+                }
+              },
+              {
+                "goal_id": "ff8d9da5-15f7-4f32-9774-9e1707c00e1c",
+                "goal_name": "Curso de idioma",
+                "currency": "ARS",
+                "status": "on_track",
+                "monthly_allocation": {
+                  "amount": "100000.00",
+                  "currency": "ARS"
+                },
+                "months_to_goal": 6,
+                "balance_at_deadline": {
+                  "amount": "600000.00",
+                  "currency": "ARS"
+                }
+              }
+            ]
+          },
+          {
+            "name": "income_down_20",
+            "income_change": "-0.20",
+            "expense_change": "0",
+            "annual_return": "0",
+            "budgets": [
+              {
+                "currency": "ARS",
+                "monthly_surplus": {
+                  "amount": "190000.00",
+                  "currency": "ARS"
+                },
+                "emergency_reserve": {
+                  "amount": "0.00",
+                  "currency": "ARS"
+                },
+                "high_apr_debt": {
+                  "amount": "0.00",
+                  "currency": "ARS"
+                },
+                "goals": {
+                  "amount": "190000.00",
+                  "currency": "ARS"
+                },
+                "unassigned": {
+                  "amount": "0.00",
+                  "currency": "ARS"
+                }
+              }
+            ],
+            "goals": [
+              {
+                "goal_id": "4ffab66a-2e51-4446-a438-a9418f9911a7",
+                "goal_name": "Fondo para mudanza",
+                "currency": "ARS",
+                "status": "on_track",
+                "monthly_allocation": {
+                  "amount": "105000.00",
+                  "currency": "ARS"
+                },
+                "months_to_goal": 10,
+                "balance_at_deadline": {
+                  "amount": "1500000.00",
+                  "currency": "ARS"
+                }
+              },
+              {
+                "goal_id": "ff8d9da5-15f7-4f32-9774-9e1707c00e1c",
+                "goal_name": "Curso de idioma",
+                "currency": "ARS",
+                "status": "underfunded",
+                "monthly_allocation": {
+                  "amount": "85000.00",
+                  "currency": "ARS"
+                },
+                "months_to_goal": 8,
+                "balance_at_deadline": {
+                  "amount": "510000.00",
+                  "currency": "ARS"
+                }
+              }
+            ]
+          },
+          {
+            "name": "expenses_up_10",
+            "income_change": "0",
+            "expense_change": "0.10",
+            "annual_return": "0",
+            "budgets": [
+              {
+                "currency": "ARS",
+                "monthly_surplus": {
+                  "amount": "425000.00",
+                  "currency": "ARS"
+                },
+                "emergency_reserve": {
+                  "amount": "0.00",
+                  "currency": "ARS"
+                },
+                "high_apr_debt": {
+                  "amount": "0.00",
+                  "currency": "ARS"
+                },
+                "goals": {
+                  "amount": "242500.00",
+                  "currency": "ARS"
+                },
+                "unassigned": {
+                  "amount": "182500.00",
+                  "currency": "ARS"
+                }
+              }
+            ],
+            "goals": [
+              {
+                "goal_id": "4ffab66a-2e51-4446-a438-a9418f9911a7",
+                "goal_name": "Fondo para mudanza",
+                "currency": "ARS",
+                "status": "on_track",
+                "monthly_allocation": {
+                  "amount": "142500.00",
+                  "currency": "ARS"
+                },
+                "months_to_goal": 10,
+                "balance_at_deadline": {
+                  "amount": "1500000.00",
+                  "currency": "ARS"
+                }
+              },
+              {
+                "goal_id": "ff8d9da5-15f7-4f32-9774-9e1707c00e1c",
+                "goal_name": "Curso de idioma",
+                "currency": "ARS",
+                "status": "on_track",
+                "monthly_allocation": {
+                  "amount": "100000.00",
+                  "currency": "ARS"
+                },
+                "months_to_goal": 6,
+                "balance_at_deadline": {
+                  "amount": "600000.00",
+                  "currency": "ARS"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "freshness": {
+      "is_stale": true,
+      "reasons": [
+        "inputs_changed"
+      ]
+    }
+  },
+  "scenario": {
+    "id": "5b369601-ec18-443f-9b60-fe0834df7284",
+    "base_plan_id": "261a4873-93eb-4ce3-bd28-5ef965e789e3",
+    "name": "Ingreso 20% menor",
+    "income_change": "-0.2000",
+    "expense_change": "0.0000",
+    "annual_return": "0.0000",
+    "status": "simulated",
+    "adopted_plan_id": null,
+    "created_at": "2026-10-03T17:25:10.659334",
+    "adopted_at": null,
+    "result": {
+      "as_of": "2026-10-01",
+      "policy_version": "2026-10-03.1",
+      "base_currency": "ARS",
+      "reserve_months": "3",
+      "budgets": [
+        {
+          "currency": "ARS",
+          "monthly": {
+            "income": {
+              "amount": "1440000.00",
+              "currency": "ARS"
+            },
+            "expenses": {
+              "amount": "1250000.00",
+              "currency": "ARS"
+            },
+            "minimum_payments_total": {
+              "amount": "0.00",
+              "currency": "ARS"
+            },
+            "minimum_payments_added_to_outflow": {
+              "amount": "0.00",
+              "currency": "ARS"
+            },
+            "commitments": {
+              "amount": "0.00",
+              "currency": "ARS"
+            },
+            "outflow": {
+              "amount": "1250000.00",
+              "currency": "ARS"
+            },
+            "surplus": {
+              "amount": "190000.00",
+              "currency": "ARS"
+            },
+            "allocations": {
+              "emergency_reserve": {
+                "amount": "0.00",
+                "currency": "ARS"
+              },
+              "high_apr_debt": {
+                "amount": "0.00",
+                "currency": "ARS"
+              },
+              "goals": {
+                "amount": "190000.00",
+                "currency": "ARS"
+              }
+            },
+            "allocated_total": {
+              "amount": "190000.00",
+              "currency": "ARS"
+            },
+            "unassigned": {
+              "amount": "0.00",
+              "currency": "ARS"
+            }
+          },
+          "current_balances": {
+            "liquid": {
+              "amount": "4200000.00",
+              "currency": "ARS"
+            },
+            "not_counted_as_available": {
+              "amount": "0.00",
+              "currency": "ARS"
+            },
+            "reserved_commitments": {
+              "amount": "0.00",
+              "currency": "ARS"
+            },
+            "goal_savings": {
+              "amount": "0.00",
+              "currency": "ARS"
+            },
+            "reserve_target": {
+              "amount": "3750000.00",
+              "currency": "ARS"
+            },
+            "reserve_held": {
+              "amount": "3750000.00",
+              "currency": "ARS"
+            },
+            "reserve_gap": {
+              "amount": "0.00",
+              "currency": "ARS"
+            },
+            "free_after_reserve": {
+              "amount": "450000.00",
+              "currency": "ARS"
+            },
+            "allocations": {
+              "high_apr_debt": {
+                "amount": "0.00",
+                "currency": "ARS"
+              },
+              "goals": {
+                "amount": "450000.00",
+                "currency": "ARS"
+              }
+            },
+            "allocated_total": {
+              "amount": "450000.00",
+              "currency": "ARS"
+            },
+            "unassigned": {
+              "amount": "0.00",
+              "currency": "ARS"
+            }
+          },
+          "debt": {
+            "total": {
+              "amount": "0.00",
+              "currency": "ARS"
+            },
+            "high_apr": {
+              "amount": "0.00",
+              "currency": "ARS"
+            },
+            "high_apr_count": 0
+          }
+        }
+      ],
+      "goals": [
+        {
+          "goal_id": "4ffab66a-2e51-4446-a438-a9418f9911a7",
+          "goal_name": "Fondo para mudanza",
+          "currency": "ARS",
+          "priority": "high",
+          "status": "on_track",
+          "target": {
+            "amount": "1500000.00",
+            "currency": "ARS"
+          },
+          "saved": {
+            "amount": "0.00",
+            "currency": "ARS"
+          },
+          "remaining": {
+            "amount": "1500000.00",
+            "currency": "ARS"
+          },
+          "one_time_allocation": {
+            "amount": "450000.00",
+            "currency": "ARS"
+          },
+          "monthly_allocation": {
+            "amount": "105000.00",
+            "currency": "ARS"
+          },
+          "required_monthly": {
+            "amount": "105000.00",
+            "currency": "ARS"
+          },
+          "shortfall_monthly": null,
+          "months_left": 10,
+          "deadline_source": "horizon_months",
+          "months_to_goal": 10
+        },
+        {
+          "goal_id": "ff8d9da5-15f7-4f32-9774-9e1707c00e1c",
+          "goal_name": "Curso de idioma",
+          "currency": "ARS",
+          "priority": "medium",
+          "status": "underfunded",
+          "target": {
+            "amount": "600000.00",
+            "currency": "ARS"
+          },
+          "saved": {
+            "amount": "0.00",
+            "currency": "ARS"
+          },
+          "remaining": {
+            "amount": "600000.00",
+            "currency": "ARS"
+          },
+          "one_time_allocation": {
+            "amount": "0.00",
+            "currency": "ARS"
+          },
+          "monthly_allocation": {
+            "amount": "85000.00",
+            "currency": "ARS"
+          },
+          "required_monthly": {
+            "amount": "100000.00",
+            "currency": "ARS"
+          },
+          "shortfall_monthly": {
+            "amount": "15000.00",
+            "currency": "ARS"
+          },
+          "months_left": 6,
+          "deadline_source": "horizon_months",
+          "months_to_goal": 8
+        }
+      ],
+      "constraints": [
+        {
+          "constraint_id": "goal_shortfall",
+          "severity": "medium",
+          "currency": "ARS",
+          "message": "1 goal(s) in ARS cannot be met with the current plan.",
+          "evidence": {
+            "goals": "Curso de idioma"
+          },
+          "effect": "No surplus is left for new investments; goals show their monthly shortfall or need a new date.",
+          "blocks_new_investment": true
+        }
+      ],
+      "assumptions": [
+        "monthly_income_estimated",
+        "goal_horizon_months_counted_from_plan_date",
+        "only_high_liquidity_balances_count_as_available",
+        "goal_savings_are_held_within_declared_balances",
+        "reserve_target_uses_total_monthly_outflow",
+        "months_to_goal_assume_zero_return"
+      ],
+      "missing_data": [],
+      "scenarios": [
+        {
+          "name": "base",
+          "income_change": "0",
+          "expense_change": "0",
+          "annual_return": "0",
+          "budgets": [
+            {
+              "currency": "ARS",
+              "monthly_surplus": {
+                "amount": "190000.00",
+                "currency": "ARS"
+              },
+              "emergency_reserve": {
+                "amount": "0.00",
+                "currency": "ARS"
+              },
+              "high_apr_debt": {
+                "amount": "0.00",
+                "currency": "ARS"
+              },
+              "goals": {
+                "amount": "190000.00",
+                "currency": "ARS"
+              },
+              "unassigned": {
+                "amount": "0.00",
+                "currency": "ARS"
+              }
+            }
+          ],
+          "goals": [
+            {
+              "goal_id": "4ffab66a-2e51-4446-a438-a9418f9911a7",
+              "goal_name": "Fondo para mudanza",
+              "currency": "ARS",
+              "status": "on_track",
+              "monthly_allocation": {
+                "amount": "105000.00",
+                "currency": "ARS"
+              },
+              "months_to_goal": 10,
+              "balance_at_deadline": {
+                "amount": "1500000.00",
+                "currency": "ARS"
+              }
+            },
+            {
+              "goal_id": "ff8d9da5-15f7-4f32-9774-9e1707c00e1c",
+              "goal_name": "Curso de idioma",
+              "currency": "ARS",
+              "status": "underfunded",
+              "monthly_allocation": {
+                "amount": "85000.00",
+                "currency": "ARS"
+              },
+              "months_to_goal": 8,
+              "balance_at_deadline": {
+                "amount": "510000.00",
+                "currency": "ARS"
+              }
+            }
+          ]
+        },
+        {
+          "name": "income_down_20",
+          "income_change": "-0.20",
+          "expense_change": "0",
+          "annual_return": "0",
+          "budgets": [
+            {
+              "currency": "ARS",
+              "monthly_surplus": {
+                "amount": "-98000.00",
+                "currency": "ARS"
+              },
+              "emergency_reserve": {
+                "amount": "0.00",
+                "currency": "ARS"
+              },
+              "high_apr_debt": {
+                "amount": "0.00",
+                "currency": "ARS"
+              },
+              "goals": {
+                "amount": "0.00",
+                "currency": "ARS"
+              },
+              "unassigned": {
+                "amount": "0.00",
+                "currency": "ARS"
+              }
+            }
+          ],
+          "goals": [
+            {
+              "goal_id": "4ffab66a-2e51-4446-a438-a9418f9911a7",
+              "goal_name": "Fondo para mudanza",
+              "currency": "ARS",
+              "status": "underfunded",
+              "monthly_allocation": {
+                "amount": "0.00",
+                "currency": "ARS"
+              },
+              "months_to_goal": null,
+              "balance_at_deadline": {
+                "amount": "450000.00",
+                "currency": "ARS"
+              }
+            },
+            {
+              "goal_id": "ff8d9da5-15f7-4f32-9774-9e1707c00e1c",
+              "goal_name": "Curso de idioma",
+              "currency": "ARS",
+              "status": "underfunded",
+              "monthly_allocation": {
+                "amount": "0.00",
+                "currency": "ARS"
+              },
+              "months_to_goal": null,
+              "balance_at_deadline": {
+                "amount": "0.00",
+                "currency": "ARS"
+              }
+            }
+          ]
+        },
+        {
+          "name": "expenses_up_10",
+          "income_change": "0",
+          "expense_change": "0.10",
+          "annual_return": "0",
+          "budgets": [
+            {
+              "currency": "ARS",
+              "monthly_surplus": {
+                "amount": "65000.00",
+                "currency": "ARS"
+              },
+              "emergency_reserve": {
+                "amount": "0.00",
+                "currency": "ARS"
+              },
+              "high_apr_debt": {
+                "amount": "0.00",
+                "currency": "ARS"
+              },
+              "goals": {
+                "amount": "65000.00",
+                "currency": "ARS"
+              },
+              "unassigned": {
+                "amount": "0.00",
+                "currency": "ARS"
+              }
+            }
+          ],
+          "goals": [
+            {
+              "goal_id": "4ffab66a-2e51-4446-a438-a9418f9911a7",
+              "goal_name": "Fondo para mudanza",
+              "currency": "ARS",
+              "status": "underfunded",
+              "monthly_allocation": {
+                "amount": "65000.00",
+                "currency": "ARS"
+              },
+              "months_to_goal": 22,
+              "balance_at_deadline": {
+                "amount": "725000.00",
+                "currency": "ARS"
+              }
+            },
+            {
+              "goal_id": "ff8d9da5-15f7-4f32-9774-9e1707c00e1c",
+              "goal_name": "Curso de idioma",
+              "currency": "ARS",
+              "status": "underfunded",
+              "monthly_allocation": {
+                "amount": "0.00",
+                "currency": "ARS"
+              },
+              "months_to_goal": null,
+              "balance_at_deadline": {
+                "amount": "0.00",
+                "currency": "ARS"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "comparison": [
+      {
+        "currency": "ARS",
+        "base_monthly_surplus": {
+          "amount": "550000.00",
+          "currency": "ARS"
+        },
+        "scenario_monthly_surplus": {
+          "amount": "190000.00",
+          "currency": "ARS"
+        },
+        "base_goal_contributions": {
+          "amount": "205000.00",
+          "currency": "ARS"
+        },
+        "scenario_goal_contributions": {
+          "amount": "190000.00",
+          "currency": "ARS"
+        },
+        "goal_contributions_change": {
+          "amount": "-15000.00",
+          "currency": "ARS"
+        }
+      }
+    ],
+    "goal_comparison": [
+      {
+        "goal_id": "4ffab66a-2e51-4446-a438-a9418f9911a7",
+        "goal_name": "Fondo para mudanza",
+        "base_status": "on_track",
+        "scenario_status": "on_track",
+        "base_monthly_allocation": {
+          "amount": "105000.00",
+          "currency": "ARS"
+        },
+        "scenario_monthly_allocation": {
+          "amount": "105000.00",
+          "currency": "ARS"
+        },
+        "base_months_to_goal": 10,
+        "scenario_months_to_goal": 10
+      },
+      {
+        "goal_id": "ff8d9da5-15f7-4f32-9774-9e1707c00e1c",
+        "goal_name": "Curso de idioma",
+        "base_status": "on_track",
+        "scenario_status": "underfunded",
+        "base_monthly_allocation": {
+          "amount": "100000.00",
+          "currency": "ARS"
+        },
+        "scenario_monthly_allocation": {
+          "amount": "85000.00",
+          "currency": "ARS"
+        },
+        "base_months_to_goal": 6,
+        "scenario_months_to_goal": 8
+      }
+    ]
+  },
+  "review": {
+    "period": "2026-10",
+    "plan_id": "261a4873-93eb-4ce3-bd28-5ef965e789e3",
+    "plan_version": 1,
+    "freshness": {
+      "is_stale": true,
+      "reasons": [
+        "inputs_changed"
+      ]
+    },
+    "goals": [
+      {
+        "goal_id": "4ffab66a-2e51-4446-a438-a9418f9911a7",
+        "goal_name": "Fondo para mudanza",
+        "currency": "ARS",
+        "planned": {
+          "amount": "105000.00",
+          "currency": "ARS"
+        },
+        "recorded": {
+          "amount": "105000.00",
+          "currency": "ARS"
+        },
+        "difference": {
+          "amount": "0.00",
+          "currency": "ARS"
+        },
+        "status": "met"
+      },
+      {
+        "goal_id": "ff8d9da5-15f7-4f32-9774-9e1707c00e1c",
+        "goal_name": "Curso de idioma",
+        "currency": "ARS",
+        "planned": {
+          "amount": "100000.00",
+          "currency": "ARS"
+        },
+        "recorded": {
+          "amount": "0.00",
+          "currency": "ARS"
+        },
+        "difference": {
+          "amount": "-100000.00",
+          "currency": "ARS"
+        },
+        "status": "not_recorded"
+      }
+    ],
+    "totals": [
+      {
+        "currency": "ARS",
+        "planned": {
+          "amount": "205000.00",
+          "currency": "ARS"
+        },
+        "recorded": {
+          "amount": "105000.00",
+          "currency": "ARS"
+        },
+        "difference": {
+          "amount": "-100000.00",
+          "currency": "ARS"
+        }
+      }
+    ]
+  }
+}

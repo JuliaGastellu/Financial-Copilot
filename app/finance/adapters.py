@@ -144,6 +144,13 @@ def snapshot_from_profile(profile: dict[str, Any], as_of: date) -> FinancialSnap
         )
 
     reserve = profile.get("emergency_reserve_months")
+    provenance = profile.get("provenance") or {}
+    for field in ("monthly_income", "monthly_expenses", "balances", "reserve_months"):
+        status = provenance.get(field, "reported")
+        if status == "estimated":
+            assumptions.append(f"{field}_estimated")
+        elif status == "unknown":
+            missing.append(f"{field}_unknown")
     if rounded:
         assumptions.append("amounts_rounded_to_currency_minor_unit:" + ",".join(rounded))
 
@@ -206,6 +213,7 @@ def planning_profile_from_v1(profile: dict[str, Any], goals: list[dict[str, Any]
             for c in profile.get("commitments") or []
         ],
         "emergency_reserve_months": str(profile["emergency_reserve_months"]) if profile.get("emergency_reserve_months") is not None else None,
+        "provenance": profile.get("provenance") or {},
         "goals": [
             {
                 "name": g["name"],

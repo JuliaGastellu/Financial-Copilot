@@ -131,6 +131,12 @@ class GoalRepository:
             row = conn.execute(select(goals).where(goals.c.id == goal_id, goals.c.user_id == owner_id)).mappings().first()
             return _goal_row(row) if row else None
 
+    def create_in(self, conn: Any, owner_id: str, values: dict[str, Any]) -> str:
+        now = utc_now()
+        goal_id = new_id()
+        conn.execute(insert(goals).values(id=goal_id, user_id=owner_id, created_at=now, updated_at=now, saved_as_of=now, **values))
+        return goal_id
+
     def create(self, owner_id: str, values: dict[str, Any]) -> dict[str, Any]:
         now = utc_now()
         goal_id = new_id()

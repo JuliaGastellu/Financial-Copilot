@@ -99,7 +99,28 @@ def build_v1_router(settings: Settings, limit: Limit) -> APIRouter:
 
     @router.post("/goals", response_model=GoalV1, status_code=201, tags=["goals"])
     @limit(settings.rate_limit_writes)
-    def create_goal(request: Request, payload: GoalInputV1, user: UserRecord = Depends(current_user)) -> dict[str, Any]:
+    def create_goal(
+        request: Request,
+        response: Response,
+        payload: GoalInputV1,
+        user: UserRecord = Depends(current_user),
+        idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
+    ) -> dict[str, Any]:
+        if idempotency_key is not None:
+            from app.services.accounts import goal_values
+
+            goal, replayed = _call(
+                lambda: _planning(request).create_goal_idempotent(
+                    user,
+                    goal_values(payload.model_dump()),
+                    payload.model_dump(mode="json"),
+                    idempotency_key,
+                    settings.max_goals_per_user,
+                    _rid(request),
+                )
+            )
+            _mark_replay(response, replayed)
+            return goal_to_v1(goal)
         try:
             goal = _service(request).create_goal(user, payload.model_dump(), _rid(request))
         except LimitExceededError:

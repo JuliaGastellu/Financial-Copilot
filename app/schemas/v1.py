@@ -68,6 +68,18 @@ class CommitmentV1(StrictModel):
     amount: MoneyV1
 
 
+Provenance = Literal["reported", "estimated", "unknown"]
+
+
+class ProvenanceV1(StrictModel):
+    """Distingo un dato declarado, una estimación y un dato desconocido; cero es un valor declarado."""
+
+    monthly_income: Provenance = "reported"
+    monthly_expenses: Provenance = "reported"
+    balances: Provenance = "reported"
+    reserve_months: Provenance = "reported"
+
+
 class ProfileV1(StrictModel):
     currency: CurrencyCode
     country: Annotated[str, StringConstraints(pattern=r"^[A-Z]{2}$")] | None = None
@@ -77,12 +89,22 @@ class ProfileV1(StrictModel):
     liabilities: list[LiabilityV1] = Field(default_factory=list, max_length=100)
     commitments: list[CommitmentV1] = Field(default_factory=list, max_length=100)
     emergency_reserve_months: Decimal | None = Field(default=None, ge=0, le=24, allow_inf_nan=False)
+    provenance: ProvenanceV1 = Field(default_factory=ProvenanceV1)
 
     @model_validator(mode="after")
     def _one_cashflow_per_currency(self) -> ProfileV1:
         currencies = [c.currency for c in self.cashflows]
         if len(currencies) != len(set(currencies)):
             raise ValueError("Use one cashflow per currency.")
+        return self
+
+    @model_validator(mode="after")
+    def _unknown_values_are_empty(self) -> ProfileV1:
+        # Un dato desconocido no se reemplaza por cero: exijo que no venga un valor.
+        if self.provenance.balances == "unknown" and self.assets:
+            raise ValueError("Balances marked as unknown cannot include assets.")
+        if self.provenance.reserve_months == "unknown" and self.emergency_reserve_months is not None:
+            raise ValueError("Reserve months marked as unknown cannot include a value.")
         return self
 
 
