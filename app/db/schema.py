@@ -212,7 +212,14 @@ documents = Table(
     Column("content", Text, nullable=False),
     Column("sha256", String(64), nullable=False),
     Column("created_at", DateTime(timezone=True), nullable=False),
+    # Procedencia y vigencia: solo recupero documentos aprobados y vigentes.
+    Column("publisher", String(200), nullable=True),
+    Column("published_on", Date, nullable=True),
+    Column("reviewed_on", Date, nullable=True),
+    Column("valid_until", Date, nullable=True),
+    Column("review_status", String(12), nullable=False, server_default="pending"),
     CheckConstraint("corpus = 'public'", name="corpus_public_only"),
+    CheckConstraint("review_status IN ('approved', 'pending', 'rejected')", name="review_status_valid"),
     UniqueConstraint("corpus", "sha256", name="uq_documents_corpus_sha256"),
 )
 
@@ -225,9 +232,59 @@ chunks = Table(
     Column("chunk_index", Integer, nullable=False),
     Column("content", Text, nullable=False),
     Column("sha256", String(64), nullable=False),
+    # Fragmentos con instrucciones sospechosas: los guardo para auditoría, pero no los indexo ni recupero.
+    Column("flagged_reason", String(40), nullable=True),
     CheckConstraint("corpus = 'public'", name="corpus_public_only"),
     UniqueConstraint("document_id", "chunk_index", name="uq_chunks_document_id_chunk_index"),
     Index("ix_chunks_corpus", "corpus"),
 )
 
-PERSONAL_TABLES = ("idempotency_keys", "progress_entries", "scenarios", "plans", "goals", "profiles", "users")
+# Registro de índices vectoriales por modelo y dimensión de embeddings.
+vector_indexes = Table(
+    "vector_indexes",
+    metadata,
+    Column("id", String(36), primary_key=True),
+    Column("embedding_model", String(80), nullable=False),
+    Column("dimension", Integer, nullable=False),
+    Column("collection", String(120), nullable=False),
+    Column("status", String(10), nullable=False),
+    Column("chunk_count", Integer, nullable=False),
+    Column("created_at", DateTime(timezone=True), nullable=False),
+    CheckConstraint("status IN ('active', 'building', 'retired')", name="status_valid"),
+    CheckConstraint("dimension > 0", name="dimension_positive"),
+    UniqueConstraint("embedding_model", "dimension", name="uq_vector_indexes_embedding_model_dimension"),
+)
+
+# Explicaciones generadas de un plan. Guardo el resultado validado o la plantilla usada.
+plan_explanations = Table(
+    "plan_explanations",
+    metadata,
+    Column("id", String(36), primary_key=True),
+    Column("user_id", String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False),
+    Column("plan_id", String(36), ForeignKey("plans.id", ondelete="CASCADE"), nullable=False),
+    Column("prompt_version", String(20), nullable=False),
+    Column("provider", String(40), nullable=False),
+    Column("model", String(80), nullable=False),
+    Column("source", String(10), nullable=False),
+    Column("fallback_reason", String(40), nullable=True),
+    Column("content", JsonType, nullable=False),
+    Column("input_tokens", Integer, nullable=False),
+    Column("output_tokens", Integer, nullable=False),
+    Column("latency_ms", Integer, nullable=False),
+    Column("created_at", DateTime(timezone=True), nullable=False),
+    CheckConstraint("source IN ('provider', 'template')", name="source_valid"),
+    UniqueConstraint("plan_id", "prompt_version", "provider", "model", name="uq_plan_explanations_plan_id_prompt_version_provider_model"),
+    Index("ix_plan_explanations_user_id_created_at", "user_id", "created_at"),
+)
+
+# Consumo diario por cuenta para aplicar cuota de generación.
+explanation_usage = Table(
+    "explanation_usage",
+    metadata,
+    Column("user_id", String(36), ForeignKey("users.id", ondelete="CASCADE"), primary_key=True),
+    Column("day", Date, primary_key=True),
+    Column("calls", Integer, nullable=False),
+    Column("tokens", Integer, nullable=False),
+)
+
+PERSONAL_TABLES = ("explanation_usage", "plan_explanations", "idempotency_keys", "progress_entries", "scenarios", "plans", "goals", "profiles", "users")

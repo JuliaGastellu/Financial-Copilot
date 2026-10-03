@@ -59,7 +59,8 @@ def test_delete_removes_personal_rows_and_returns_evidence(client, auth):
     assert res.status_code == 200
     evidence = res.json()["evidence"]
     assert evidence["relational_database"]["deleted"] == {
-        "idempotency_keys": 1, "progress_entries": 0, "scenarios": 0, "plans": 1, "goals": 1, "profiles": 1, "users": 1,
+        "explanation_usage": 0, "plan_explanations": 0, "idempotency_keys": 1, "progress_entries": 0, "scenarios": 0,
+        "plans": 1, "goals": 1, "profiles": 1, "users": 1,
     }
     assert set(evidence["relational_database"]["remaining"].values()) == {0}
     assert evidence["vector_store"]["personal_records"] == 0

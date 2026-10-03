@@ -187,3 +187,28 @@ Pendiente:
 - Elegir el proveedor de identidad real.
 - Revisar la usabilidad con personas.
 - Cargar en la interfaz deudas, compromisos y varias monedas, que la API ya acepta.
+
+## Estado tras la etapa de explicación y recuperación educativa
+
+Con esta etapa resuelvo los hallazgos P0 y P1 sobre generación y recuperación. La descripción, la evaluación y los límites están en [explicación y corpus](EXPLICACION_Y_CORPUS.md).
+
+- **El modelo ya no decide.** Explica un plan calculado con hechos seudonimizados, y cada salida se valida contra el plan; si contradice, se entrega la plantilla.
+- **Recuperación sin candidatos forzados.** No devuelvo candidatos bajo el umbral por obligación: con evidencia insuficiente me abstengo.
+- **Citas por afirmación.** Cada afirmación educativa es literal y cita su fragmento.
+- **Documentos no confiables.** Los fragmentos con instrucciones sospechosas no se indexan.
+- **Índices versionados** por modelo y dimensión de embeddings.
+
+Sobre 60 casos ficticios con proveedor simulado:
+
+- 0 contradicciones entregadas en 17 casos críticos;
+- 100% de afirmaciones respaldadas;
+- 14 de 14 abstenciones diseñadas.
+
+En 12 preguntas reservadas, escritas después del ajuste y corridas una vez, respondí 4 de 8 respondibles y me abstuve correctamente en 4 de 4. No evalué un modelo real ni medí costos reales.
+
+Comparé Chroma y pgvector con los mismos vectores. Mantengo Chroma por ahora y propongo migrar a pgvector en la etapa de operación por razones operativas.
+
+Resultados de las suites:
+
+- Backend: 336 pruebas en SQLite y 337 en PostgreSQL 16.
+- Web: 42 en Vitest y 18 en navegador.

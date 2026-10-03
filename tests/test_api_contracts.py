@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 from app.rag.ingestion import ingest_public_document
-from tests.v1_payloads import idem, goal_v1, profile_v1
+from tests.v1_payloads import provenance, idem, goal_v1, profile_v1
 
 
 def _ingest(client, content: str) -> None:
     container = client.app.state.container
     ingest_public_document(
-        settings=container.settings, corpus=container.corpus, vector=container.vector, title="Macro", source="contract-test", content=content
+        settings=container.settings, corpus=container.corpus, vector=container.vector, title="Macro", content=content, provenance=provenance(), registry=container.registry
     )
 
 
@@ -23,10 +23,13 @@ def test_contract_knowledge_query_shape_with_docs(client, auth):
     res = client.post("/v1/knowledge/query", json={"query": "How do rates affect my decisions?"}, headers=auth("c2"))
     assert res.status_code == 200
     body = res.json()
-    assert set(body.keys()) == {"answer", "citations", "corpus", "mode"}
+    assert set(body.keys()) == {"status", "abstention_reason", "answer", "claims", "citations", "retrieval", "corpus", "mode"}
     assert body["answer"].strip()
-    assert body["corpus"] == "public"
+    assert body["corpus"] == "public" and body["mode"] == "extractive"
+    assert body["status"] in ("answered", "abstained")
     assert all("doc_id" in c for c in body["citations"])
+    # Cada afirmación lleva al menos una cita.
+    assert all(claim["citations"] for claim in body["claims"])
     # Retiré `confidence`: era una constante o un valor del modelo sin calibrar.
     assert "confidence" not in body
 
@@ -37,6 +40,8 @@ def test_contract_knowledge_query_shape_without_docs(client, auth):
     body = res.json()
     assert body["answer"].strip()
     assert body["citations"] == []
+    # Sin corpus no hay evidencia: me abstengo en lugar de devolver un candidato cualquiera.
+    assert body["status"] == "abstained" and body["abstention_reason"] == "no_evidence"
 
 
 def test_contract_plan_record_shape(client, auth):

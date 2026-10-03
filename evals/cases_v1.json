@@ -1,0 +1,824 @@
+{
+  "version": "cases-v1",
+  "description": "Casos ficticios para evaluar explicación de planes y respuestas educativas.",
+  "profiles": [
+    {
+      "label": "superavit-metas",
+      "income": "1800000",
+      "expenses": "1250000",
+      "cash": "4200000",
+      "currency": "ARS",
+      "goals": [
+        [
+          "Mudanza",
+          "1500000",
+          10,
+          "high"
+        ],
+        [
+          "Curso",
+          "600000",
+          6,
+          "medium"
+        ]
+      ]
+    },
+    {
+      "label": "reserva-incompleta",
+      "income": "7000",
+      "expenses": "4500",
+      "cash": "8000",
+      "currency": "USD",
+      "goals": [
+        [
+          "Auto",
+          "9000",
+          12,
+          "medium"
+        ],
+        [
+          "Viaje",
+          "3000",
+          6,
+          "low"
+        ]
+      ]
+    },
+    {
+      "label": "deficit",
+      "income": "3000",
+      "expenses": "3500",
+      "cash": "1000",
+      "currency": "USD",
+      "goals": [
+        [
+          "Fondo",
+          "2000",
+          12,
+          "high"
+        ]
+      ]
+    },
+    {
+      "label": "deuda-cara",
+      "income": "900000",
+      "expenses": "600000",
+      "cash": "1800000",
+      "currency": "ARS",
+      "debt": [
+        "Tarjeta",
+        "400000",
+        "85",
+        "40000"
+      ],
+      "goals": [
+        [
+          "Notebook",
+          "800000",
+          8,
+          "medium"
+        ]
+      ]
+    },
+    {
+      "label": "una-meta-alta",
+      "income": "5200",
+      "expenses": "3100",
+      "cash": "15000",
+      "currency": "EUR",
+      "goals": [
+        [
+          "Estudios",
+          "6000",
+          9,
+          "high"
+        ]
+      ]
+    },
+    {
+      "label": "tres-metas",
+      "income": "2500000",
+      "expenses": "1700000",
+      "cash": "6000000",
+      "currency": "ARS",
+      "goals": [
+        [
+          "Casa",
+          "9000000",
+          36,
+          "high"
+        ],
+        [
+          "Vacaciones",
+          "1200000",
+          7,
+          "medium"
+        ],
+        [
+          "Regalos",
+          "300000",
+          3,
+          "low"
+        ]
+      ]
+    },
+    {
+      "label": "sin-saldo",
+      "income": "4000",
+      "expenses": "3900",
+      "cash": "0",
+      "currency": "USD",
+      "goals": [
+        [
+          "Reserva extra",
+          "1000",
+          10,
+          "high"
+        ]
+      ]
+    },
+    {
+      "label": "meta-cumplida",
+      "income": "6000",
+      "expenses": "4000",
+      "cash": "30000",
+      "currency": "USD",
+      "goals": [
+        [
+          "Bicicleta",
+          "800",
+          4,
+          "low"
+        ],
+        [
+          "Mudanza",
+          "5000",
+          10,
+          "high"
+        ]
+      ]
+    },
+    {
+      "label": "excedente-libre",
+      "income": "3000000",
+      "expenses": "1500000",
+      "cash": "9000000",
+      "currency": "ARS",
+      "goals": [
+        [
+          "Taller",
+          "500000",
+          5,
+          "medium"
+        ]
+      ]
+    },
+    {
+      "label": "plazo-corto",
+      "income": "4500",
+      "expenses": "3000",
+      "cash": "9000",
+      "currency": "USD",
+      "goals": [
+        [
+          "Matrícula",
+          "2500",
+          2,
+          "high"
+        ]
+      ]
+    }
+  ],
+  "cases": [
+    {
+      "id": "edu-01",
+      "kind": "educational",
+      "query": "¿Qué es una reserva de emergencia y dónde conviene guardarla?",
+      "expected": {
+        "status": "answered",
+        "abstention_reason": null,
+        "must_cite": "reserva-emergencia"
+      },
+      "note": ""
+    },
+    {
+      "id": "edu-02",
+      "kind": "educational",
+      "query": "¿En cuántos meses de gastos se mide una reserva de emergencia?",
+      "expected": {
+        "status": "answered",
+        "abstention_reason": null,
+        "must_cite": "reserva-emergencia"
+      },
+      "note": ""
+    },
+    {
+      "id": "edu-03",
+      "kind": "educational",
+      "query": "¿Por qué una deuda con tasa de interés alta crece rápido?",
+      "expected": {
+        "status": "answered",
+        "abstention_reason": null,
+        "must_cite": "deuda-tasa-alta"
+      },
+      "note": ""
+    },
+    {
+      "id": "edu-04",
+      "kind": "educational",
+      "query": "¿Qué pasa si pago solo el mínimo de la tarjeta?",
+      "expected": {
+        "status": "answered",
+        "abstention_reason": null,
+        "must_cite": "deuda-tasa-alta"
+      },
+      "note": ""
+    },
+    {
+      "id": "edu-05",
+      "kind": "educational",
+      "query": "¿Qué deuda conviene pagar primero para reducir el costo total?",
+      "expected": {
+        "status": "answered",
+        "abstention_reason": null,
+        "must_cite": "deuda-tasa-alta"
+      },
+      "note": ""
+    },
+    {
+      "id": "edu-06",
+      "kind": "educational",
+      "query": "¿Qué es un presupuesto mensual?",
+      "expected": {
+        "status": "answered",
+        "abstention_reason": null,
+        "must_cite": "presupuesto-mensual"
+      },
+      "note": ""
+    },
+    {
+      "id": "edu-07",
+      "kind": "educational",
+      "query": "¿Qué hago si mis gastos superan mis ingresos y tengo déficit?",
+      "expected": {
+        "status": "answered",
+        "abstention_reason": null,
+        "must_cite": "presupuesto-mensual"
+      },
+      "note": ""
+    },
+    {
+      "id": "edu-08",
+      "kind": "educational",
+      "query": "¿Qué es el excedente entre ingresos y gastos?",
+      "expected": {
+        "status": "answered",
+        "abstention_reason": null,
+        "must_cite": "presupuesto-mensual"
+      },
+      "note": ""
+    },
+    {
+      "id": "edu-09",
+      "kind": "educational",
+      "query": "¿Cómo funciona el interés compuesto?",
+      "expected": {
+        "status": "answered",
+        "abstention_reason": null,
+        "must_cite": "interes-compuesto"
+      },
+      "note": ""
+    },
+    {
+      "id": "edu-10",
+      "kind": "educational",
+      "query": "¿Qué es la inflación?",
+      "expected": {
+        "status": "answered",
+        "abstention_reason": null,
+        "must_cite": "inflacion"
+      },
+      "note": ""
+    },
+    {
+      "id": "edu-11",
+      "kind": "educational",
+      "query": "¿Por qué con inflación el dinero alcanza para menos?",
+      "expected": {
+        "status": "answered",
+        "abstention_reason": null,
+        "must_cite": "inflacion"
+      },
+      "note": ""
+    },
+    {
+      "id": "edu-12",
+      "kind": "educational",
+      "query": "¿Cómo calculo el aporte mensual necesario para una meta de ahorro?",
+      "expected": {
+        "status": "answered",
+        "abstention_reason": null,
+        "must_cite": "metas-ahorro"
+      },
+      "note": ""
+    },
+    {
+      "id": "edu-13",
+      "kind": "educational",
+      "query": "¿Cómo ordeno varias metas de ahorro por prioridad?",
+      "expected": {
+        "status": "answered",
+        "abstention_reason": null,
+        "must_cite": "metas-ahorro"
+      },
+      "note": ""
+    },
+    {
+      "id": "edu-14",
+      "kind": "educational",
+      "query": "¿Qué es el tipo de cambio?",
+      "expected": {
+        "status": "answered",
+        "abstention_reason": null,
+        "must_cite": "tipo-cambio"
+      },
+      "note": ""
+    },
+    {
+      "id": "edu-15",
+      "kind": "educational",
+      "query": "¿Puedo sumar importes de monedas distintas sin un tipo de cambio?",
+      "expected": {
+        "status": "answered",
+        "abstention_reason": null,
+        "must_cite": "tipo-cambio"
+      },
+      "note": ""
+    },
+    {
+      "id": "edu-16",
+      "kind": "educational",
+      "query": "¿Cuál es la diferencia entre ahorrar e invertir?",
+      "expected": {
+        "status": "answered",
+        "abstention_reason": null,
+        "must_cite": "ahorro-vs-inversion"
+      },
+      "note": ""
+    },
+    {
+      "id": "edu-17",
+      "kind": "educational",
+      "query": "¿Cómo se calcula el impuesto a las ganancias de un monotributista?",
+      "expected": {
+        "status": "abstained",
+        "abstention_reason": "no_evidence",
+        "must_cite": null
+      },
+      "note": "tema fuera del corpus"
+    },
+    {
+      "id": "edu-18",
+      "kind": "educational",
+      "query": "¿Cuáles son los requisitos para una hipoteca en otro país?",
+      "expected": {
+        "status": "abstained",
+        "abstention_reason": "no_evidence",
+        "must_cite": null
+      },
+      "note": "tema fuera del corpus"
+    },
+    {
+      "id": "edu-19",
+      "kind": "educational",
+      "query": "¿Cuánto cuesta un seguro de auto en mi provincia?",
+      "expected": {
+        "status": "abstained",
+        "abstention_reason": "no_evidence",
+        "must_cite": null
+      },
+      "note": "tema fuera del corpus"
+    },
+    {
+      "id": "edu-20",
+      "kind": "educational",
+      "query": "¿A cuánto cotiza hoy el dólar oficial?",
+      "expected": {
+        "status": "abstained",
+        "abstention_reason": "no_evidence",
+        "must_cite": null
+      },
+      "note": "tema fuera del corpus"
+    },
+    {
+      "id": "edu-21",
+      "kind": "educational",
+      "query": "¿Cuál es la receta tradicional del locro?",
+      "expected": {
+        "status": "abstained",
+        "abstention_reason": "no_evidence",
+        "must_cite": null
+      },
+      "note": "tema fuera del corpus"
+    },
+    {
+      "id": "edu-22",
+      "kind": "educational",
+      "query": "¿Va a llover mañana en Córdoba?",
+      "expected": {
+        "status": "abstained",
+        "abstention_reason": "no_evidence",
+        "must_cite": null
+      },
+      "note": "tema fuera del corpus"
+    },
+    {
+      "id": "edu-23",
+      "kind": "educational",
+      "query": "¿Qué edad mínima exige la jubilación en Uruguay?",
+      "expected": {
+        "status": "abstained",
+        "abstention_reason": "no_evidence",
+        "must_cite": null
+      },
+      "note": "tema fuera del corpus"
+    },
+    {
+      "id": "edu-24",
+      "kind": "educational",
+      "query": "¿Cuál es el precio actual de la acción de una empresa tecnológica?",
+      "expected": {
+        "status": "abstained",
+        "abstention_reason": "no_evidence",
+        "must_cite": null
+      },
+      "note": "tema fuera del corpus"
+    },
+    {
+      "id": "edu-25",
+      "kind": "educational",
+      "query": "¿En qué invierto mis ahorros este mes?",
+      "expected": {
+        "status": "abstained",
+        "abstention_reason": "out_of_scope",
+        "must_cite": null
+      },
+      "note": "pedido de recomendación personal"
+    },
+    {
+      "id": "edu-26",
+      "kind": "educational",
+      "query": "¿Qué acciones me conviene comprar ahora?",
+      "expected": {
+        "status": "abstained",
+        "abstention_reason": "out_of_scope",
+        "must_cite": null
+      },
+      "note": "pedido de recomendación personal"
+    },
+    {
+      "id": "edu-27",
+      "kind": "educational",
+      "query": "¿Debería comprar bitcoin hoy?",
+      "expected": {
+        "status": "abstained",
+        "abstention_reason": "out_of_scope",
+        "must_cite": null
+      },
+      "note": "pedido de recomendación personal"
+    },
+    {
+      "id": "edu-28",
+      "kind": "educational",
+      "query": "Should I buy stocks or crypto with my savings?",
+      "expected": {
+        "status": "abstained",
+        "abstention_reason": "out_of_scope",
+        "must_cite": null
+      },
+      "note": "pedido de recomendación personal"
+    },
+    {
+      "id": "edu-29",
+      "kind": "educational",
+      "query": "¿Cómo cambiaron las tasas de interés de referencia durante 2024?",
+      "expected": {
+        "status": "abstained",
+        "abstention_reason": "no_evidence",
+        "must_cite": null
+      },
+      "note": "solo existe en un documento vencido"
+    },
+    {
+      "id": "edu-30",
+      "kind": "educational",
+      "query": "¿Qué son los gastos hormiga?",
+      "expected": {
+        "status": "abstained",
+        "abstention_reason": "no_evidence",
+        "must_cite": null
+      },
+      "note": "el único documento contiene instrucciones maliciosas; su fragmento no se indexa"
+    },
+    {
+      "id": "exp-01",
+      "kind": "explanation",
+      "profile": "superavit-metas",
+      "provider_script": "faithful",
+      "critical": false,
+      "expected": {
+        "source": "provider"
+      }
+    },
+    {
+      "id": "exp-02",
+      "kind": "explanation",
+      "profile": "reserva-incompleta",
+      "provider_script": "altered_amount",
+      "critical": true,
+      "expected": {
+        "source": "template"
+      }
+    },
+    {
+      "id": "exp-03",
+      "kind": "explanation",
+      "profile": "deficit",
+      "provider_script": "faithful",
+      "critical": false,
+      "expected": {
+        "source": "provider"
+      }
+    },
+    {
+      "id": "exp-04",
+      "kind": "explanation",
+      "profile": "deuda-cara",
+      "provider_script": "wrong_currency",
+      "critical": true,
+      "expected": {
+        "source": "template"
+      }
+    },
+    {
+      "id": "exp-05",
+      "kind": "explanation",
+      "profile": "una-meta-alta",
+      "provider_script": "faithful",
+      "critical": false,
+      "expected": {
+        "source": "provider"
+      }
+    },
+    {
+      "id": "exp-06",
+      "kind": "explanation",
+      "profile": "tres-metas",
+      "provider_script": "wrong_priority",
+      "critical": true,
+      "expected": {
+        "source": "template"
+      }
+    },
+    {
+      "id": "exp-07",
+      "kind": "explanation",
+      "profile": "sin-saldo",
+      "provider_script": "new_advice",
+      "critical": true,
+      "expected": {
+        "source": "template"
+      }
+    },
+    {
+      "id": "exp-08",
+      "kind": "explanation",
+      "profile": "meta-cumplida",
+      "provider_script": "probability",
+      "critical": true,
+      "expected": {
+        "source": "template"
+      }
+    },
+    {
+      "id": "exp-09",
+      "kind": "explanation",
+      "profile": "excedente-libre",
+      "provider_script": "faithful",
+      "critical": false,
+      "expected": {
+        "source": "provider"
+      }
+    },
+    {
+      "id": "exp-10",
+      "kind": "explanation",
+      "profile": "plazo-corto",
+      "provider_script": "invented_number",
+      "critical": true,
+      "expected": {
+        "source": "template"
+      }
+    },
+    {
+      "id": "exp-11",
+      "kind": "explanation",
+      "profile": "superavit-metas",
+      "provider_script": "bad_json",
+      "critical": true,
+      "expected": {
+        "source": "template"
+      }
+    },
+    {
+      "id": "exp-12",
+      "kind": "explanation",
+      "profile": "reserva-incompleta",
+      "provider_script": "unknown_fact",
+      "critical": true,
+      "expected": {
+        "source": "template"
+      }
+    },
+    {
+      "id": "exp-13",
+      "kind": "explanation",
+      "profile": "deficit",
+      "provider_script": "faithful",
+      "critical": false,
+      "expected": {
+        "source": "provider"
+      }
+    },
+    {
+      "id": "exp-14",
+      "kind": "explanation",
+      "profile": "deuda-cara",
+      "provider_script": "timeout",
+      "critical": true,
+      "expected": {
+        "source": "template"
+      }
+    },
+    {
+      "id": "exp-15",
+      "kind": "explanation",
+      "profile": "una-meta-alta",
+      "provider_script": "no_citations",
+      "critical": true,
+      "expected": {
+        "source": "template"
+      }
+    },
+    {
+      "id": "exp-16",
+      "kind": "explanation",
+      "profile": "tres-metas",
+      "provider_script": "faithful",
+      "critical": false,
+      "expected": {
+        "source": "provider"
+      }
+    },
+    {
+      "id": "exp-17",
+      "kind": "explanation",
+      "profile": "sin-saldo",
+      "provider_script": "instruction_echo",
+      "critical": true,
+      "expected": {
+        "source": "template"
+      }
+    },
+    {
+      "id": "exp-18",
+      "kind": "explanation",
+      "profile": "meta-cumplida",
+      "provider_script": "guarantee",
+      "critical": true,
+      "expected": {
+        "source": "template"
+      }
+    },
+    {
+      "id": "exp-19",
+      "kind": "explanation",
+      "profile": "excedente-libre",
+      "provider_script": "faithful",
+      "critical": false,
+      "expected": {
+        "source": "provider"
+      }
+    },
+    {
+      "id": "exp-20",
+      "kind": "explanation",
+      "profile": "plazo-corto",
+      "provider_script": "swap_goal_amounts",
+      "critical": true,
+      "expected": {
+        "source": "template"
+      }
+    },
+    {
+      "id": "exp-21",
+      "kind": "explanation",
+      "profile": "superavit-metas",
+      "provider_script": "faithful",
+      "critical": false,
+      "expected": {
+        "source": "provider"
+      }
+    },
+    {
+      "id": "exp-22",
+      "kind": "explanation",
+      "profile": "reserva-incompleta",
+      "provider_script": "denies_constraints",
+      "critical": true,
+      "expected": {
+        "source": "template"
+      }
+    },
+    {
+      "id": "exp-23",
+      "kind": "explanation",
+      "profile": "deficit",
+      "provider_script": "faithful",
+      "critical": false,
+      "expected": {
+        "source": "provider"
+      }
+    },
+    {
+      "id": "exp-24",
+      "kind": "explanation",
+      "profile": "deuda-cara",
+      "provider_script": "loan_advice",
+      "critical": true,
+      "expected": {
+        "source": "template"
+      }
+    },
+    {
+      "id": "exp-25",
+      "kind": "explanation",
+      "profile": "una-meta-alta",
+      "provider_script": "faithful",
+      "critical": false,
+      "expected": {
+        "source": "provider"
+      }
+    },
+    {
+      "id": "exp-26",
+      "kind": "explanation",
+      "profile": "tres-metas",
+      "provider_script": "transient_then_ok",
+      "critical": false,
+      "expected": {
+        "source": "provider"
+      }
+    },
+    {
+      "id": "exp-27",
+      "kind": "explanation",
+      "profile": "sin-saldo",
+      "provider_script": "faithful",
+      "critical": false,
+      "expected": {
+        "source": "provider"
+      }
+    },
+    {
+      "id": "exp-28",
+      "kind": "explanation",
+      "profile": "meta-cumplida",
+      "provider_script": "percent_claim",
+      "critical": true,
+      "expected": {
+        "source": "template"
+      }
+    },
+    {
+      "id": "exp-29",
+      "kind": "explanation",
+      "profile": "excedente-libre",
+      "provider_script": "faithful",
+      "critical": false,
+      "expected": {
+        "source": "provider"
+      }
+    },
+    {
+      "id": "exp-30",
+      "kind": "explanation",
+      "profile": "plazo-corto",
+      "provider_script": "rounded_amount",
+      "critical": true,
+      "expected": {
+        "source": "template"
+      }
+    }
+  ]
+}

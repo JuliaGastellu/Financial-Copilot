@@ -23,7 +23,6 @@ class Settings(BaseSettings):
     sqlite_path: Path | None = None
     auto_migrate: bool = True
     chroma_dir: Path | None = None
-    chroma_collection: str = "financial_copilot_public_corpus"
 
     # Identidad gestionada (OIDC). Verifico tokens de acceso JWT contra el JWKS del emisor.
     oidc_issuer: str | None = None
@@ -51,7 +50,23 @@ class Settings(BaseSettings):
     rag_chunk_size: int = 900
     rag_chunk_overlap: int = 120
     rag_top_k: int = 6
-    rag_min_relevance: float = 0.15
+    # Umbral de similitud coseno para proponer candidatos. La decisión de responder es léxica (app/rag/answer.py).
+    rag_min_relevance: float = 0.1
+    # Umbral de coincidencia de términos para la búsqueda alternativa sin índice.
+    rag_min_keyword_overlap: float = 0.5
+    embedding_model: str = "text-embedding-3-small"
+    embedding_dimension: int = Field(default=1536, ge=8, le=4096)
+
+    # Explicación de planes. Deshabilitada por defecto: el cálculo no depende del proveedor.
+    explanation_provider: Literal["disabled", "openai_compatible"] = "disabled"
+    explanation_base_url: str = "https://api.openai.com/v1"
+    explanation_model: str = "gpt-4o-mini"
+    explanation_timeout_seconds: float = Field(default=15.0, gt=0, le=60)
+    explanation_max_retries: int = Field(default=2, ge=0, le=3)
+    explanation_max_input_tokens: int = Field(default=3000, ge=200, le=20000)
+    explanation_max_output_tokens: int = Field(default=700, ge=100, le=4000)
+    explanation_daily_quota: int = Field(default=20, ge=0, le=1000)
+    explanation_daily_token_budget: int = Field(default=40000, ge=0)
 
     # Lista JSON de orígenes permitidos. En producción exijo orígenes explícitos con https.
     allowed_origins: list[str] = Field(default_factory=lambda: ["http://127.0.0.1:8000", "http://localhost:8000"])
@@ -63,6 +78,7 @@ class Settings(BaseSettings):
     rate_limit_query: str = "20/minute"
     rate_limit_plans: str = "20/minute"
     rate_limit_privacy: str = "5/minute"
+    rate_limit_explanations: str = "6/minute"
 
     def resolved_sqlite_path(self) -> Path:
         return self.sqlite_path or (self.data_dir / "app.db")
@@ -100,6 +116,8 @@ class Settings(BaseSettings):
             problems.append("RATE_LIMIT_ENABLED must be true.")
         if self.auto_migrate:
             problems.append("AUTO_MIGRATE must be false; apply migrations as a separate step.")
+        if self.explanation_provider != "disabled" and urlparse(self.explanation_base_url).scheme != "https":
+            problems.append("EXPLANATION_BASE_URL must use https.")
         return problems
 
     def validate_runtime(self) -> None:

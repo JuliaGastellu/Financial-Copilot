@@ -3,6 +3,7 @@ import { Link, Navigate } from "react-router-dom";
 import { newIdempotencyKey } from "../api/client";
 import type { Page, PlanSummary } from "../api/types";
 import { StaleBanner } from "../components/Layout";
+import { PlanExplanation } from "../components/PlanExplanation";
 import { BudgetCard, GoalsTable, HowItWasCalculated, NextActionCard, ReasonsCard, SituationCard } from "../components/views";
 import { Alert, Button, EmptyState, ErrorState, Loading, PageTitle } from "../components/ui";
 import { useSubmitGuard } from "../components/useSubmitGuard";
@@ -167,7 +168,10 @@ export function HowPage() {
       {!plan?.result ? (
         <EmptyState title="Todavía no hay un plan para explicar" action={<Link to="/inicio">Ir a tu situación</Link>} />
       ) : (
-        <HowItWasCalculated result={plan.result} createdAt={plan.created_at} engineVersion={plan.engine_version} />
+        <>
+          <PlanExplanation api={data.api} planId={plan.id} />
+          <HowItWasCalculated result={plan.result} createdAt={plan.created_at} engineVersion={plan.engine_version} />
+        </>
       )}
     </div>
   );

@@ -213,3 +213,23 @@ describe("aislamiento de sesión", () => {
     vi.doUnmock("../auth/AuthContext");
   });
 });
+
+describe("explicación del plan", () => {
+  test("muestra la explicación y aclara si es la estándar", async () => {
+    const { PlanExplanation } = await import("../components/PlanExplanation");
+    const user = userEvent.setup();
+    const request = vi.fn().mockResolvedValue({
+      plan_id: "p1",
+      source: "template",
+      fallback_reason: "provider_disabled",
+      summary: { text: "Este mes tenés ARS 550.000,00 para repartir según el plan.", facts: ["f1"] },
+      points: [{ text: "«Mudanza» va en camino.", facts: ["f2"] }],
+    });
+    render(<PlanExplanation api={{ request, download: vi.fn() } as unknown as Api} planId="p1" />);
+    await user.click(screen.getByRole("button", { name: "Explicar mi plan" }));
+    expect(await screen.findByText(/ARS 550.000,00/)).toBeInTheDocument();
+    expect(screen.getByText(/Explicación estándar/)).toBeInTheDocument();
+    expect(request).toHaveBeenCalledWith("/v1/plans/p1/explanation", { method: "POST" });
+    expect(document.body.textContent).not.toMatch(/provider_disabled|template/);
+  });
+});

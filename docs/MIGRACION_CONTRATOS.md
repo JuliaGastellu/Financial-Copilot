@@ -1,5 +1,16 @@
 # Migración de contratos
 
+## Explicación y recuperación educativa (etapa de explicación)
+
+- `POST /v1/knowledge/query` cambió de forma. Ahora devuelve `status` (`answered` o `abstained`), `abstention_reason` (`no_evidence` u `out_of_scope`), `answer`, `claims` (cada una con al menos una cita), `citations` (con `publisher`, `published_on` y `valid_until`), `retrieval` (método y candidatos), y `mode: "extractive"`.
+- `POST /v1/plans/{id}/explanation` es nuevo y devuelve `source` (`provider` o `template`), `fallback_reason`, `summary`, `points` (cada uno con los hechos que cita), `prompt_version`, `created_at` y `cached`.
+- La migración `0003` agrega:
+  - procedencia y vigencia en `documents`, y marcas en `chunks`;
+  - las tablas `vector_indexes`, `plan_explanations` y `explanation_usage`.
+
+  Los documentos anteriores quedan pendientes y no se recuperan hasta reingerirlos con procedencia.
+- La colección vectorial cambia de nombre por modelo y dimensión (`public-corpus-hash-v2-768`). El índice anterior no se reutiliza.
+
 ## Procedencia de datos y aplicación web (etapa de experiencia)
 
 - `ProfileV1` agrega `provenance` con `monthly_income`, `monthly_expenses`, `balances` y `reserve_months`. Cada uno admite `reported`, `estimated` o `unknown`, y el valor por defecto es `reported`, así que los perfiles existentes siguen siendo válidos.

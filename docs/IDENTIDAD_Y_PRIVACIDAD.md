@@ -42,6 +42,8 @@ Dejé los documentos privados fuera de esta etapa:
 | `audit_events` | UUID interno, acción, tipo y resultado; sin importes ni textos | Los conservo hasta `AUDIT_RETENTION_DAYS` (365). Tras el borrado no queda vínculo entre ese UUID y la identidad. |
 | `deletion_receipts` | HMAC de (`iss`, `sub`) con `PRIVACY_HASH_KEY`, fecha y conteos | Los conservo mientras pueda existir un backup anterior al borrado: `BACKUP_RETENTION_DAYS` + 30 días. |
 | Índice vectorial (Chroma) | No: solo corpus público | No aplica. |
+| `plan_explanations`, `explanation_usage` | Texto explicativo del plan y conteo de uso | Se borran con la cuenta. |
+| Proveedor de texto (si se habilita) | Hechos del plan seudonimizados, sin nombres ni identificadores | El proveedor aplica su propia retención; hay que revisarla antes de habilitarlo. |
 | Logs de aplicación | UUID interno, ruta, estado y duración; nunca contenido del perfil, metas o planes | Siguen la retención del proveedor de logs, que todavía no elegí. |
 | Backups | Sí, hasta que expiran | Después de cada restore reaplico los borrados (ver más abajo). |
 

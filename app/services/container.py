@@ -11,8 +11,11 @@ from app.data.documents import PublicCorpusRepository
 from app.data.privacy import PrivacyRepository
 from app.db.engine import build_engine, upgrade
 from app.opportunity_engine.repository import OpportunityRepository
-from app.rag.vector_store import VectorStoreBundle, build_vector_store
-from app.services.accounts import AccountService, KnowledgeService
+from app.explain.provider import build_provider
+from app.explain.service import ExplanationService
+from app.rag.vector_store import IndexRegistry, VectorStoreBundle, build_vector_store
+from app.services.accounts import AccountService
+from app.services.knowledge import KnowledgeService
 from app.services.planning import PlanningService
 
 
@@ -27,6 +30,8 @@ class AppContainer:
     accounts: AccountService
     planning: PlanningService
     knowledge: KnowledgeService
+    explanations: ExplanationService
+    registry: IndexRegistry
     privacy: PrivacyRepository
 
 
@@ -61,6 +66,8 @@ def build_container(settings: Settings) -> AppContainer:
         opportunities=OpportunityRepository(),
         accounts=accounts,
         planning=planning,
-        knowledge=KnowledgeService(settings=settings, corpus=corpus, vector=vector),
+        knowledge=KnowledgeService(settings=settings, corpus=corpus, vector=vector, registry=IndexRegistry(engine)),
+        explanations=ExplanationService(engine=engine, settings=settings, provider=build_provider(settings)),
+        registry=IndexRegistry(engine),
         privacy=privacy,
     )

@@ -9,11 +9,7 @@ from typing import Any
 from app.core.config import Settings
 from app.core.observability import log_event
 from app.data.accounts import AuditRepository, GoalRepository, ProfileRepository, UserRecord
-from app.data.documents import PublicCorpusRepository
 from app.data.privacy import PrivacyRepository
-from app.rag.retrieval import build_context, retrieve
-from app.rag.vector_store import VectorStoreBundle
-from app.reasoning.engine import extractive_answer
 
 
 class NotFoundError(Exception):
@@ -127,17 +123,3 @@ class AccountService:
         )
         log_event("account_deleted", request_id=request_id, receipt_id=result["receipt_id"])
         return result
-
-
-@dataclass(frozen=True)
-class KnowledgeService:
-    """Preguntas educativas sobre el corpus público. No uso el perfil ni datos de la cuenta."""
-
-    settings: Settings
-    corpus: PublicCorpusRepository
-    vector: VectorStoreBundle
-
-    def answer(self, query: str, top_k: int | None) -> dict[str, Any]:
-        chunks = retrieve(settings=self.settings, corpus=self.corpus, vector=self.vector, query=query, top_k=top_k)
-        context, citations = build_context(chunks)
-        return {"answer": extractive_answer(query, context), "citations": citations}

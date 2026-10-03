@@ -176,10 +176,44 @@ class CitationV1(BaseModel):
     chunk_id: str | None = None
     title: str | None = None
     source: str | None = None
+    publisher: str | None = None
+    published_on: str | None = None
+    valid_until: str | None = None
+
+
+class ClaimV1(BaseModel):
+    text: str
+    citations: list[CitationV1] = Field(min_length=1)
+
+
+class RetrievalInfoV1(BaseModel):
+    method: Literal["vector", "keyword"]
+    considered: int
+    below_threshold: int
 
 
 class KnowledgeAnswerV1(BaseModel):
+    status: Literal["answered", "abstained"]
+    abstention_reason: Literal["no_evidence", "out_of_scope"] | None
     answer: str
+    claims: list[ClaimV1]
     citations: list[CitationV1]
+    retrieval: RetrievalInfoV1
     corpus: Literal["public"] = "public"
-    mode: Literal["offline"] = "offline"
+    mode: Literal["extractive"] = "extractive"
+
+
+class ExplanationPointV1(BaseModel):
+    text: str
+    facts: list[str]
+
+
+class ExplanationV1(BaseModel):
+    plan_id: str
+    source: Literal["provider", "template"]
+    fallback_reason: str | None
+    summary: ExplanationPointV1
+    points: list[ExplanationPointV1]
+    prompt_version: str
+    created_at: datetime
+    cached: bool

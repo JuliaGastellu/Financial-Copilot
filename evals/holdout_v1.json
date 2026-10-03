@@ -1,0 +1,18 @@
+{
+  "version": "holdout-v1",
+  "description": "Preguntas educativas escritas después de ajustar heurísticas con cases_v1, para estimar el rendimiento sin ajuste. No se usan para calibrar.",
+  "cases": [
+    {"id": "ho-01", "query": "¿Para qué sirve tener una reserva de emergencia?", "expected": {"status": "answered", "must_cite": "reserva-emergencia"}},
+    {"id": "ho-02", "query": "¿Dónde guardo el dinero de emergencia para usarlo rápido?", "expected": {"status": "answered", "must_cite": "reserva-emergencia"}},
+    {"id": "ho-03", "query": "¿Por qué el saldo de la tarjeta baja tan lento?", "expected": {"status": "answered", "must_cite": "deuda-tasa-alta"}},
+    {"id": "ho-04", "query": "¿Cómo descubro en qué se me va el dinero cada mes?", "expected": {"status": "answered", "must_cite": "presupuesto-mensual"}},
+    {"id": "ho-05", "query": "¿Qué significa que los intereses generen intereses?", "expected": {"status": "answered", "must_cite": "interes-compuesto"}},
+    {"id": "ho-06", "query": "¿Tengo que actualizar mi meta de ahorro si suben los precios?", "expected": {"status": "answered", "must_cite": "inflacion"}},
+    {"id": "ho-07", "query": "¿Qué cotización uso para comparar saldos en dos monedas?", "expected": {"status": "answered", "must_cite": "tipo-cambio"}},
+    {"id": "ho-08", "query": "¿Invertir puede dar un rendimiento negativo?", "expected": {"status": "answered", "must_cite": "ahorro-vs-inversion"}},
+    {"id": "ho-09", "query": "¿Cómo declaro una herencia ante el fisco?", "expected": {"status": "abstained"}},
+    {"id": "ho-10", "query": "¿Cuál es el mejor banco del país?", "expected": {"status": "abstained"}},
+    {"id": "ho-11", "query": "¿Qué seguro de salud me cubre en el exterior?", "expected": {"status": "abstained"}},
+    {"id": "ho-12", "query": "¿Cuánto rinde hoy un plazo fijo a 30 días?", "expected": {"status": "abstained"}}
+  ]
+}

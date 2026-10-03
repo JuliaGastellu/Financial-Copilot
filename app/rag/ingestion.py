@@ -1,16 +1,19 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import date
 
 from app.core.config import Settings
-from app.data.documents import PUBLIC_CORPUS, PublicCorpusRepository
-from app.rag.vector_store import VectorStoreBundle
+from app.data.documents import PUBLIC_CORPUS, ChunkRecord, Provenance, PublicCorpusRepository
+from app.rag.safety import injection_reason
+from app.rag.vector_store import IndexRegistry, VectorStoreBundle
 
 
 @dataclass(frozen=True)
 class IngestionResult:
     doc_id: str
     chunks_indexed: int
+    chunks_flagged: int = 0
 
 
 def split_fixed_window(text: str, size: int, overlap: int) -> list[str]:
@@ -56,39 +59,57 @@ def chunk_text(settings: Settings, text: str) -> list[str]:
         )
 
 
+def date_key(value: date) -> int:
+    """Represento fechas como entero AAAAMMDD para poder filtrarlas en el índice vectorial."""
+    return value.year * 10000 + value.month * 100 + value.day
+
+
+def chunk_metadata(record: ChunkRecord, title: str, provenance: Provenance) -> dict:
+    return {
+        "doc_id": record.doc_id,
+        "chunk_id": record.chunk_id,
+        "chunk_index": record.chunk_index,
+        "title": title,
+        "source": provenance.source,
+        "sha256": record.sha256,
+        "corpus": PUBLIC_CORPUS,
+        "valid_until": date_key(provenance.valid_until),
+    }
+
+
 def ingest_public_document(
     *,
     settings: Settings,
     corpus: PublicCorpusRepository,
     vector: VectorStoreBundle,
     title: str,
-    source: str | None,
     content: str,
+    provenance: Provenance,
+    registry: IndexRegistry | None = None,
 ) -> IngestionResult:
-    """Ingiero un documento del corpus público curado. Repetir la ingesta no duplica contenido."""
-    doc = corpus.create_document(title=title, source=source, content=content)
+    """Ingiero un documento curado con procedencia y vigencia. Repetir la ingesta no duplica contenido.
+
+    Guardo los fragmentos con instrucciones sospechosas para auditoría, pero no los indexo.
+    """
+    if registry is not None and not registry.matches(vector.spec):
+        raise RuntimeError("The active vector index uses another embedding model. Reindex before ingesting.")
+    doc = corpus.create_document(title=title, content=content, provenance=provenance)
     if not doc.created:
         return IngestionResult(doc_id=doc.doc_id, chunks_indexed=0)
-    chunk_records = corpus.add_chunks(doc.doc_id, chunk_text(settings, content))
-    texts = [c.content for c in chunk_records]
-    ids = [c.chunk_id for c in chunk_records]
-    metadatas = [
-        {
-            "doc_id": c.doc_id,
-            "chunk_id": c.chunk_id,
-            "chunk_index": c.chunk_index,
-            "title": title,
-            "source": source or "",
-            "sha256": c.sha256,
-            "corpus": PUBLIC_CORPUS,
-        }
-        for c in chunk_records
-    ]
-    if texts:
+    pieces = chunk_text(settings, content)
+    records = corpus.add_chunks(doc.doc_id, [(piece, injection_reason(piece)) for piece in pieces])
+    indexable = [r for r in records if r.flagged_reason is None]
+    if indexable:
         try:
-            vector.store.add_texts(texts=texts, metadatas=metadatas, ids=ids)
+            vector.store.add_texts(
+                texts=[r.content for r in indexable],
+                metadatas=[chunk_metadata(r, title, provenance) for r in indexable],
+                ids=[r.chunk_id for r in indexable],
+            )
         except Exception as exc:
             # Revierto el documento para que un reintento vuelva a indexarlo.
             corpus.delete_document(doc.doc_id)
             raise RuntimeError("Failed to index document chunks in the vector store.") from exc
-    return IngestionResult(doc_id=doc.doc_id, chunks_indexed=len(chunk_records))
+    if registry is not None:
+        registry.ensure(vector.spec, chunk_count=len(corpus.usable_chunks(date.today())))
+    return IngestionResult(doc_id=doc.doc_id, chunks_indexed=len(indexable), chunks_flagged=len(records) - len(indexable))

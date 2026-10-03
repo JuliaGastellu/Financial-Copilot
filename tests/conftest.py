@@ -21,7 +21,7 @@ from app.main import create_app
 ISSUER = "https://identity.test.invalid/"
 AUDIENCE = "financial-copilot-api"
 TEST_DATABASE_URL = os.environ.get("TEST_DATABASE_URL")
-_TABLES = "chunks, documents, deletion_receipts, audit_events, plans, goals, profiles, users"
+_TABLES = "chunks, documents, vector_indexes, deletion_receipts, audit_events, plan_explanations, explanation_usage, plans, goals, profiles, users"
 
 
 class MemoryJwks:

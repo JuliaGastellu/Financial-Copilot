@@ -26,6 +26,7 @@ from app.schemas.plans_v1 import (
 )
 from app.schemas.v1 import (
     DeletionResultV1,
+    ExplanationV1,
     GoalInputV1,
     GoalV1,
     KnowledgeAnswerV1,
@@ -296,6 +297,24 @@ def build_v1_router(settings: Settings, limit: Limit) -> APIRouter:
         period: str = Path(pattern=r"^\d{4}-(0[1-9]|1[0-2])$"),
     ) -> MonthlyReviewV1:
         return _call(lambda: _planning(request).review(user, period))
+
+    @router.post("/plans/{plan_id}/explanation", response_model=ExplanationV1, tags=["plans"])
+    @limit(settings.rate_limit_explanations)
+    def explain_plan(request: Request, plan_id: str, user: UserRecord = Depends(current_user)) -> ExplanationV1:
+        plan = _call(lambda: _planning(request).get_plan(user, plan_id))
+        if plan.result is None:
+            raise ApiProblem(409, "plan_not_reproducible", "This plan has no stored result to explain. Create a new plan first.")
+        explained = request.app.state.container.explanations.explain(user, plan.id, plan.result, _rid(request))
+        return ExplanationV1(
+            plan_id=plan.id,
+            source=explained.source,
+            fallback_reason=explained.fallback_reason,
+            summary=explained.output.summary.model_dump(),
+            points=[p.model_dump() for p in explained.output.points],
+            prompt_version=explained.prompt_version,
+            created_at=explained.created_at,
+            cached=explained.cached,
+        )
 
     @router.post("/knowledge/query", response_model=KnowledgeAnswerV1, tags=["knowledge"])
     @limit(settings.rate_limit_query)

@@ -11,6 +11,7 @@ Estoy desarrollando una herramienta para organizar ingresos, gastos, deudas y me
 - **Privacidad.** Exportación (`GET /v1/me/export`), borrado con recibo de evidencia (`DELETE /v1/me`), retención, auditoría sin contenido financiero y reaplicación de borrados tras restaurar un backup.
 - **Corpus público curado** para preguntas educativas (`POST /v1/knowledge/query`). Los documentos privados quedan fuera de esta etapa: no hay ingesta por HTTP y la base solo admite el corpus público.
 - **Entorno de producción** que se niega a arrancar con configuración insegura, y CORS con orígenes explícitos.
+- **Explicación de planes y recuperación educativa.** Un proveedor de texto opcional redacta la explicación de un plan ya calculado. La salida se valida contra las cifras, monedas, prioridades y restricciones del plan, y si no coincide se usa una plantilla. Las preguntas educativas se responden con oraciones literales del corpus curado, una cita por afirmación y abstención sin evidencia. Los detalles y la evaluación con 60 casos están en [explicación y corpus](docs/EXPLICACION_Y_CORPUS.md).
 - **Aplicación web** (`web/`, React, TypeScript y Vite) con alta progresiva, situación actual, plan mensual, metas, escenarios, revisión mensual, «Cómo lo calculé» y cuenta. No calcula importes en el navegador. Los detalles están en [la experiencia web](docs/EXPERIENCIA_WEB.md).
 
 Los contratos y las rutas retiradas están en [la migración de contratos](docs/MIGRACION_CONTRATOS.md). El contrato de identidad, los almacenes, la retención y los backups están en [identidad y privacidad](docs/IDENTIDAD_Y_PRIVACIDAD.md).
@@ -58,6 +59,9 @@ Scripts operativos:
 | `scripts/dev_identity.py` | Genero claves y tokens locales. |
 | `scripts/dev_oidc_provider.py` | Levanto un proveedor OIDC local para la aplicación web y la QA. |
 | `scripts/build_web_demo.py` | Genero los datos ficticios de la demo con la API real. |
+| `scripts/reindex_corpus.py` | Construyo el índice del modelo de embeddings configurado sin tocar el activo. |
+| `scripts/evaluate_vector_stores.py` | Comparo Chroma y pgvector con los mismos vectores. |
+| `python -m evals.run_eval` | Corro la evaluación de 60 casos (proveedor simulado; `--mode real` es optativo). |
 
 ## Configuración
 

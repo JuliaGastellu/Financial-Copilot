@@ -16,7 +16,19 @@ from sqlalchemy import Engine, delete, func, insert, select
 
 from app.core.config import Settings
 from app.data.accounts import new_id, utc_now
-from app.db.schema import audit_events, deletion_receipts, goals, idempotency_keys, plans, profiles, progress_entries, scenarios, users
+from app.db.schema import (
+    audit_events,
+    deletion_receipts,
+    explanation_usage,
+    goals,
+    idempotency_keys,
+    plan_explanations,
+    plans,
+    profiles,
+    progress_entries,
+    scenarios,
+    users,
+)
 
 # Conservo las claves de idempotencia lo suficiente para cubrir reintentos.
 IDEMPOTENCY_RETENTION_DAYS = 7
@@ -43,6 +55,8 @@ def _count(conn: Any, table: Any, column: Any, owner_id: str) -> int:
 
 # Orden de borrado: primero las tablas que dependen de otras.
 _PERSONAL = (
+    ("explanation_usage", explanation_usage, explanation_usage.c.user_id),
+    ("plan_explanations", plan_explanations, plan_explanations.c.user_id),
     ("idempotency_keys", idempotency_keys, idempotency_keys.c.user_id),
     ("progress_entries", progress_entries, progress_entries.c.user_id),
     ("scenarios", scenarios, scenarios.c.user_id),
@@ -71,6 +85,9 @@ class PrivacyRepository:
             scenario_rows = conn.execute(
                 select(scenarios).where(scenarios.c.user_id == owner_id).order_by(scenarios.c.created_at)
             ).mappings().all()
+            explanation_rows = conn.execute(
+                select(plan_explanations).where(plan_explanations.c.user_id == owner_id).order_by(plan_explanations.c.created_at)
+            ).mappings().all()
             progress_rows = conn.execute(
                 select(progress_entries).where(progress_entries.c.user_id == owner_id).order_by(progress_entries.c.recorded_at)
             ).mappings().all()
@@ -84,6 +101,7 @@ class PrivacyRepository:
             "plans": [dict(r) for r in plan_rows],
             "scenarios": [dict(r) for r in scenario_rows],
             "progress_entries": [dict(r) for r in progress_rows],
+            "plan_explanations": [dict(r) for r in explanation_rows],
             "audit_events": [dict(r) for r in audit_rows],
         }
 
