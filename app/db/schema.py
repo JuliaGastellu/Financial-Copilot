@@ -22,6 +22,8 @@ from sqlalchemy import (
 )
 from sqlalchemy.dialects.postgresql import JSONB
 
+from app.db.types import EmbeddingType
+
 metadata = MetaData(
     naming_convention={
         "ix": "ix_%(table_name)s_%(column_0_name)s",
@@ -287,4 +289,45 @@ explanation_usage = Table(
     Column("tokens", Integer, nullable=False),
 )
 
-PERSONAL_TABLES = ("explanation_usage", "plan_explanations", "idempotency_keys", "progress_entries", "scenarios", "plans", "goals", "profiles", "users")
+# Embeddings del corpus público, por modelo y dimensión. Viven en la base: un solo almacén y backup.
+chunk_embeddings = Table(
+    "chunk_embeddings",
+    metadata,
+    Column("chunk_id", String(36), ForeignKey("chunks.id", ondelete="CASCADE"), primary_key=True),
+    Column("embedding_model", String(80), primary_key=True),
+    Column("dimension", Integer, primary_key=True),
+    Column("embedding", EmbeddingType(), nullable=False),
+    Column("created_at", DateTime(timezone=True), nullable=False),
+    CheckConstraint("dimension > 0", name="dimension_positive"),
+    Index("ix_chunk_embeddings_embedding_model_dimension", "embedding_model", "dimension"),
+)
+
+# Estado de cada ingesta para reintentar sin duplicar ni dejar documentos a medias.
+ingestion_jobs = Table(
+    "ingestion_jobs",
+    metadata,
+    Column("id", String(36), primary_key=True),
+    Column("sha256", String(64), nullable=False),
+    Column("document_id", String(36), nullable=True),
+    Column("status", String(12), nullable=False),
+    Column("attempts", Integer, nullable=False),
+    Column("chunks_total", Integer, nullable=False),
+    Column("chunks_embedded", Integer, nullable=False),
+    Column("chunks_flagged", Integer, nullable=False),
+    Column("error_code", String(40), nullable=True),
+    Column("created_at", DateTime(timezone=True), nullable=False),
+    Column("updated_at", DateTime(timezone=True), nullable=False),
+    UniqueConstraint("sha256", name="uq_ingestion_jobs_sha256"),
+    CheckConstraint("status IN ('pending', 'embedding', 'completed', 'failed')", name="status_valid"),
+)
+
+# Uso diario de la API por cuenta, para cuotas independientes de la cantidad de procesos.
+api_usage = Table(
+    "api_usage",
+    metadata,
+    Column("user_id", String(36), ForeignKey("users.id", ondelete="CASCADE"), primary_key=True),
+    Column("day", Date, primary_key=True),
+    Column("requests", Integer, nullable=False),
+)
+
+PERSONAL_TABLES = ("api_usage", "explanation_usage", "plan_explanations", "idempotency_keys", "progress_entries", "scenarios", "plans", "goals", "profiles", "users")

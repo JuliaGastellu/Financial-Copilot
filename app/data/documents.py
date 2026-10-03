@@ -10,10 +10,10 @@ from dataclasses import dataclass
 from datetime import date
 from typing import Any, Iterable
 
-from sqlalchemy import Engine, and_, delete, insert, select
+from sqlalchemy import Engine, and_, delete, insert, select, update
 
 from app.data.accounts import new_id, utc_now
-from app.db.schema import chunks, documents
+from app.db.schema import chunks, documents, ingestion_jobs
 
 PUBLIC_CORPUS = "public"
 
@@ -167,3 +167,38 @@ class PublicCorpusRepository:
                 .where(_usable(today), chunks.c.id.in_(ids))
             ).mappings()
             return {r["id"]: dict(r) for r in rows}
+
+    # ── Trabajos de ingesta ────────────────────────────────────────────────────
+
+    def start_job(self, sha: str) -> dict[str, Any]:
+        """Creo o retomo el trabajo de un contenido. Un reintento suma un intento al mismo trabajo."""
+        from sqlalchemy.exc import IntegrityError
+
+        now = utc_now()
+        with self.engine.connect() as conn:
+            row = conn.execute(select(ingestion_jobs).where(ingestion_jobs.c.sha256 == sha)).mappings().first()
+        if row is None:
+            try:
+                with self.engine.begin() as conn:
+                    conn.execute(
+                        insert(ingestion_jobs).values(
+                            id=new_id(), sha256=sha, document_id=None, status="pending", attempts=1, chunks_total=0,
+                            chunks_embedded=0, chunks_flagged=0, error_code=None, created_at=now, updated_at=now,
+                        )
+                    )
+            except IntegrityError:
+                pass
+        else:
+            with self.engine.begin() as conn:
+                conn.execute(update(ingestion_jobs).where(ingestion_jobs.c.sha256 == sha).values(attempts=ingestion_jobs.c.attempts + 1, updated_at=now))
+        with self.engine.connect() as conn:
+            return dict(conn.execute(select(ingestion_jobs).where(ingestion_jobs.c.sha256 == sha)).mappings().one())
+
+    def update_job(self, sha: str, **values: Any) -> None:
+        with self.engine.begin() as conn:
+            conn.execute(update(ingestion_jobs).where(ingestion_jobs.c.sha256 == sha).values(updated_at=utc_now(), **values))
+
+    def job(self, sha: str) -> dict[str, Any] | None:
+        with self.engine.connect() as conn:
+            row = conn.execute(select(ingestion_jobs).where(ingestion_jobs.c.sha256 == sha)).mappings().first()
+            return dict(row) if row else None

@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from datetime import date
 
 from app.core.config import Settings
-from app.data.documents import PUBLIC_CORPUS, ChunkRecord, Provenance, PublicCorpusRepository
+from app.data.documents import Provenance, PublicCorpusRepository, sha256_text
 from app.rag.safety import injection_reason
 from app.rag.vector_store import IndexRegistry, VectorStoreBundle
 
@@ -64,17 +64,10 @@ def date_key(value: date) -> int:
     return value.year * 10000 + value.month * 100 + value.day
 
 
-def chunk_metadata(record: ChunkRecord, title: str, provenance: Provenance) -> dict:
-    return {
-        "doc_id": record.doc_id,
-        "chunk_id": record.chunk_id,
-        "chunk_index": record.chunk_index,
-        "title": title,
-        "source": provenance.source,
-        "sha256": record.sha256,
-        "corpus": PUBLIC_CORPUS,
-        "valid_until": date_key(provenance.valid_until),
-    }
+class IngestionRejected(ValueError):
+    def __init__(self, code: str) -> None:
+        super().__init__(code)
+        self.code = code
 
 
 def ingest_public_document(
@@ -87,29 +80,36 @@ def ingest_public_document(
     provenance: Provenance,
     registry: IndexRegistry | None = None,
 ) -> IngestionResult:
-    """Ingiero un documento curado con procedencia y vigencia. Repetir la ingesta no duplica contenido.
+    """Ingiero un documento curado con procedencia y vigencia.
 
-    Guardo los fragmentos con instrucciones sospechosas para auditoría, pero no los indexo.
+    Registro el estado en `ingestion_jobs`. Si algo falla a mitad de camino, el reintento retoma
+    desde donde quedó: no duplica documento, fragmentos ni embeddings. Los fragmentos con
+    instrucciones sospechosas quedan guardados para auditoría, pero no se indexan.
     """
+    if len(content.encode("utf-8")) > settings.ingest_max_bytes:
+        raise IngestionRejected("document_too_large")
     if registry is not None and not registry.matches(vector.spec):
         raise RuntimeError("The active vector index uses another embedding model. Reindex before ingesting.")
-    doc = corpus.create_document(title=title, content=content, provenance=provenance)
-    if not doc.created:
-        return IngestionResult(doc_id=doc.doc_id, chunks_indexed=0)
     pieces = chunk_text(settings, content)
-    records = corpus.add_chunks(doc.doc_id, [(piece, injection_reason(piece)) for piece in pieces])
+    if len(pieces) > settings.ingest_max_chunks:
+        raise IngestionRejected("too_many_chunks")
+    sha = sha256_text(content)
+    job = corpus.start_job(sha)
+    if job["status"] == "completed":
+        return IngestionResult(doc_id=job["document_id"], chunks_indexed=0, chunks_flagged=job["chunks_flagged"])
+    doc = corpus.create_document(title=title, content=content, provenance=provenance)
+    records = corpus.chunks_for(doc.doc_id)
+    if not records:
+        records = corpus.add_chunks(doc.doc_id, [(piece, injection_reason(piece)) for piece in pieces])
     indexable = [r for r in records if r.flagged_reason is None]
-    if indexable:
-        try:
-            vector.store.add_texts(
-                texts=[r.content for r in indexable],
-                metadatas=[chunk_metadata(r, title, provenance) for r in indexable],
-                ids=[r.chunk_id for r in indexable],
-            )
-        except Exception as exc:
-            # Revierto el documento para que un reintento vuelva a indexarlo.
-            corpus.delete_document(doc.doc_id)
-            raise RuntimeError("Failed to index document chunks in the vector store.") from exc
+    flagged = len(records) - len(indexable)
+    corpus.update_job(sha, document_id=doc.doc_id, status="embedding", chunks_total=len(records), chunks_flagged=flagged)
+    try:
+        added = vector.store.add([(r.chunk_id, r.content) for r in indexable])
+    except Exception as exc:
+        corpus.update_job(sha, status="failed", error_code=type(exc).__name__[:40])
+        raise RuntimeError("Failed to embed document chunks; retry to resume the ingestion.") from exc
+    corpus.update_job(sha, status="completed", chunks_embedded=len(indexable), error_code=None)
     if registry is not None:
         registry.ensure(vector.spec, chunk_count=len(corpus.usable_chunks(date.today())))
-    return IngestionResult(doc_id=doc.doc_id, chunks_indexed=len(indexable), chunks_flagged=len(records) - len(indexable))
+    return IngestionResult(doc_id=doc.doc_id, chunks_indexed=added, chunks_flagged=flagged)

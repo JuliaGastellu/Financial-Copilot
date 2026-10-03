@@ -12,7 +12,6 @@ from typing import Any
 from app.core.config import Settings
 from app.data.documents import PUBLIC_CORPUS, PublicCorpusRepository
 from app.rag.embeddings import normalize_tokens
-from app.rag.ingestion import date_key
 from app.rag.vector_store import IndexRegistry, VectorStoreBundle
 
 
@@ -69,25 +68,14 @@ def retrieve(
         notes.append("index_model_mismatch")
     else:
         try:
-            results = vector.store.similarity_search_with_score(
-                query,
-                k=k,
-                filter={"$and": [{"corpus": PUBLIC_CORPUS}, {"valid_until": {"$gte": date_key(today)}}]},
-            )
-            ids = [doc.metadata.get("chunk_id") for doc, _ in results]
-            # Confirmo en SQL que cada fragmento sigue aprobado, vigente y sin marcas.
-            usable = corpus.usable_by_ids([i for i in ids if i], today)
+            results = vector.store.search(query, k, today)
             strong: list[RetrievedChunk] = []
             below = 0
-            for doc, distance in results:
-                row = usable.get(doc.metadata.get("chunk_id"))
-                if row is None:
-                    continue
-                relevance = max(0.0, 1.0 - float(distance))  # distancia coseno
-                if relevance < settings.rag_min_relevance:
+            for row, similarity in results:
+                if similarity < settings.rag_min_relevance:
                     below += 1
                     continue
-                strong.append(RetrievedChunk(content=row["content"], metadata=_meta(row), relevance=round(relevance, 4)))
+                strong.append(RetrievedChunk(content=row["content"], metadata=_meta(row), relevance=round(similarity, 4)))
             return Retrieval(chunks=strong, method="vector", considered=len(results), below_threshold=below, notes=notes)
         except Exception:
             notes.append("vector_search_unavailable")
