@@ -32,14 +32,16 @@ test("páginas de la cuenta sin violaciones de accesibilidad", async ({ page }) 
   await page.reload();
   await signIn(page, subject("a11y"));
   await completeOnboarding(page);
+  // Empiezo en «Situación»: cada clic siguiente es una navegación real que mueve el foco al título.
+  await audit(page, "situación");
   for (const [link, label] of [
-    ["Situación", "situación"],
     ["Plan mensual", "plan"],
     ["Metas", "metas"],
     ["Escenarios", "escenarios"],
     ["Revisión mensual", "revisión"],
     ["Cómo lo calculé", "cómo lo calculé"],
     ["Cuenta", "cuenta"],
+    ["Situación", "situación"],
   ]) {
     await goTo(page, link);
     await expect(page.getByRole("heading", { level: 1 })).toBeFocused();

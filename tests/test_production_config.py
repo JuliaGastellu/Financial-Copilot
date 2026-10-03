@@ -87,3 +87,19 @@ def test_v1_returns_503_when_authentication_is_not_configured(tmp_path) -> None:
     settings = Settings(_env_file=None, environment="test", data_dir=tmp_path, offline_mode=True, rate_limit_enabled=False)
     with TestClient(create_app(settings_override=settings)) as c:
         assert c.get("/v1/me").status_code == 503
+
+
+def test_cors_preflight_allows_idempotency_key(client) -> None:
+    # La aplicación web envía Idempotency-Key al crear recursos; sin esto el navegador bloquea la solicitud.
+    res = client.options(
+        "/v1/goals",
+        headers={
+            "Origin": "http://127.0.0.1:8000",
+            "Access-Control-Request-Method": "POST",
+            "Access-Control-Request-Headers": "authorization,content-type,idempotency-key",
+        },
+    )
+    assert res.status_code == 200
+    assert "idempotency-key" in res.headers["access-control-allow-headers"].lower()
+    post = client.post("/v1/goals", json={}, headers={"Origin": "http://127.0.0.1:8000"})
+    assert "idempotent-replayed" in post.headers.get("access-control-expose-headers", "").lower()

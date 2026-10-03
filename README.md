@@ -1,6 +1,6 @@
 # Financial Copilot
 
-Estoy desarrollando una herramienta para organizar ingresos, gastos, deudas y metas, consultar material financiero educativo y comparar escenarios de ahorro. Hoy mantengo una API en desarrollo. Todavía no la publiqué ni la conecté a un proveedor de identidad real.
+Estoy desarrollando una herramienta para organizar ingresos, gastos, deudas y metas, consultar material financiero educativo y comparar escenarios de ahorro. Hoy mantengo una API y una aplicación web en desarrollo. Todavía no las publiqué, no las conecté a un proveedor de identidad real y no las validé con participantes.
 
 ## Qué implementé
 
@@ -11,6 +11,7 @@ Estoy desarrollando una herramienta para organizar ingresos, gastos, deudas y me
 - **Privacidad.** Exportación (`GET /v1/me/export`), borrado con recibo de evidencia (`DELETE /v1/me`), retención, auditoría sin contenido financiero y reaplicación de borrados tras restaurar un backup.
 - **Corpus público curado** para preguntas educativas (`POST /v1/knowledge/query`). Los documentos privados quedan fuera de esta etapa: no hay ingesta por HTTP y la base solo admite el corpus público.
 - **Entorno de producción** que se niega a arrancar con configuración insegura, y CORS con orígenes explícitos.
+- **Aplicación web** (`web/`, React, TypeScript y Vite) con alta progresiva, situación actual, plan mensual, metas, escenarios, revisión mensual, «Cómo lo calculé» y cuenta. No calcula importes en el navegador. Los detalles están en [la experiencia web](docs/EXPERIENCIA_WEB.md).
 
 Los contratos y las rutas retiradas están en [la migración de contratos](docs/MIGRACION_CONTRATOS.md). El contrato de identidad, los almacenes, la retención y los backups están en [identidad y privacidad](docs/IDENTIDAD_Y_PRIVACIDAD.md).
 
@@ -18,7 +19,7 @@ El motor de recomendaciones y el catálogo ilustrativo siguen como módulos inte
 
 ## Límites actuales
 
-- La interfaz web anterior dependía de las rutas retiradas. Ya no la sirvo; en `/` muestro un aviso hasta la etapa de experiencia.
+- La API no sirve la aplicación web: en `/` muestra un aviso y la aplicación se compila y se publica aparte. La interfaz anterior de `public/` quedó sin uso.
 - No elegí proveedor de identidad ni probé contra su JWKS real.
 - No agregué políticas de fila de PostgreSQL. El aislamiento depende de los repositorios y de la matriz de pruebas.
 - El rate limiting se guarda en memoria del proceso.
@@ -55,6 +56,8 @@ Scripts operativos:
 | `scripts/import_local_demo.py` | Importo un perfil ficticio del SQLite anterior, con confirmación explícita. |
 | `scripts/privacy_maintenance.py` | Aplico retención, exporto recibos y reaplico borrados tras un restore. |
 | `scripts/dev_identity.py` | Genero claves y tokens locales. |
+| `scripts/dev_oidc_provider.py` | Levanto un proveedor OIDC local para la aplicación web y la QA. |
+| `scripts/build_web_demo.py` | Genero los datos ficticios de la demo con la API real. |
 
 ## Configuración
 

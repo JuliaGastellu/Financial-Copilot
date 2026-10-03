@@ -116,7 +116,8 @@ def create_app(settings_override: Settings | None = None, *, jwks_source: JwksSo
         allow_origins=app_settings.allowed_origins,
         allow_credentials=False,
         allow_methods=["GET", "POST", "PUT", "DELETE"],
-        allow_headers=["Authorization", "Content-Type", "X-Request-ID"],
+        allow_headers=["Authorization", "Content-Type", "X-Request-ID", "Idempotency-Key"],
+        expose_headers=["X-Request-ID", "Idempotent-Replayed"],
         max_age=600,
     )
     app.add_middleware(TimingMiddleware)

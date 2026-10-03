@@ -1,5 +1,14 @@
 # Migración de contratos
 
+## Procedencia de datos y aplicación web (etapa de experiencia)
+
+- `ProfileV1` agrega `provenance` con `monthly_income`, `monthly_expenses`, `balances` y `reserve_months`. Cada uno admite `reported`, `estimated` o `unknown`, y el valor por defecto es `reported`, así que los perfiles existentes siguen siendo válidos.
+  - Un saldo o una cantidad de meses marcados como `unknown` no pueden venir con valor.
+  - Con ingreso o gasto `unknown`, `POST /v1/plans` responde 409 `required_data_unknown`.
+  - Los estimados aparecen en `assumptions` y los desconocidos en `missing_data`.
+- `POST /v1/goals` acepta `Idempotency-Key` de forma opcional.
+- CORS permite el encabezado `Idempotency-Key` y expone `Idempotent-Replayed` y `X-Request-ID`.
+
 ## Planes versionados, escenarios y avances (etapa de planificación)
 
 Cambié las rutas de planes de la etapa anterior. La API v1 todavía no se publicó, así que no mantuve el formato previo:

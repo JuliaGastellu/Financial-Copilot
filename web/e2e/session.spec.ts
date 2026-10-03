@@ -33,7 +33,7 @@ test("sesión vencida: el formulario se conserva y se puede reintentar", async (
   // Espero a que venza el token de 25 segundos antes de guardar.
   await page.waitForTimeout(Math.max(0, 27_000 - (Date.now() - started)));
   await page.getByRole("button", { name: "Guardar meta" }).click();
-  await expect(page.getByText("Tu sesión venció")).toBeVisible();
+  await expect(page.getByText("Tu sesión venció", { exact: true })).toBeVisible();
   await expect(page.getByLabel("Nombre")).toHaveValue("Viaje corto");
 
   const popupPromise = page.waitForEvent("popup");
@@ -41,7 +41,7 @@ test("sesión vencida: el formulario se conserva y se puede reintentar", async (
   const popup = await popupPromise;
   await popup.getByLabel("Identificador de prueba").fill(who);
   await popup.getByRole("button", { name: "Continuar" }).click();
-  await expect(page.getByText("Tu sesión venció")).toHaveCount(0);
+  await expect(page.getByText("Tu sesión venció", { exact: true })).toHaveCount(0);
   await page.getByRole("button", { name: "Guardar meta" }).click();
   await expect(page.getByText(/Guardamos la meta/)).toBeVisible();
   await expect(page.getByRole("heading", { name: "Viaje corto" })).toBeVisible();

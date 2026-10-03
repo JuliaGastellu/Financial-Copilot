@@ -166,3 +166,24 @@ Pendiente:
 - La interfaz que consuma estos contratos.
 - Notificaciones o recordatorios de revisión.
 - Conciliación asistida de saldos: hoy la persona actualiza el ahorro y los saldos a mano.
+
+## Estado tras la etapa de experiencia web
+
+Implementé la aplicación web en `web/` (React, TypeScript y Vite) sobre la API v1, sin una segunda fuente de cálculo. Con esto respondo al hallazgo P2 sobre la interfaz de demostración y al de render seguro. La descripción y la verificación están en [la experiencia web](EXPERIENCIA_WEB.md).
+
+Para distinguir datos desconocidos, estimados y cero agregué al perfil `provenance`, que el plan traslada a supuestos y datos faltantes. Para hacer QA con el flujo estándar de identidad agregué un proveedor OIDC local de desarrollo.
+
+Resultados del 3 de octubre de 2026:
+
+- Backend: 287 pruebas aprobadas en SQLite y 288 en PostgreSQL 16.
+- Vitest: 41 pruebas aprobadas.
+- Playwright con Chrome: 18 pruebas aprobadas, en escritorio y a 360 px, incluidas accesibilidad automática y recorridos con teclado.
+
+No validé la experiencia con participantes; el criterio de 5 de 6 personas que completan el plan sin ayuda sigue pendiente.
+
+Pendiente:
+
+- Ejecutar la integración continua en GitHub.
+- Elegir el proveedor de identidad real.
+- Revisar la usabilidad con personas.
+- Cargar en la interfaz deudas, compromisos y varias monedas, que la API ya acepta.

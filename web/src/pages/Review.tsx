@@ -81,9 +81,9 @@ export function ReviewPage() {
       });
       key.current = null;
       setAmount("");
-      setSaved(true);
       await load();
       await data.reload();
+      setSaved(true);
     } catch (err) {
       setSubmitError(describeError(err));
     }

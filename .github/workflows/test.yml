@@ -44,3 +44,41 @@ jobs:
 
       - name: Docker build check
         run: docker build -t financial-copilot:ci .
+
+  web:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: "npm"
+          cache-dependency-path: web/package-lock.json
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+          cache-dependency-path: requirements-dev.lock
+
+      - name: Install dependencies
+        run: |
+          npm ci
+          pip install -r ../requirements-dev.lock
+
+      - name: Typecheck and unit tests
+        run: |
+          npm run typecheck
+          npm test
+
+      - name: Build
+        run: npm run build
+
+      - name: Browser tests (Chrome)
+        env:
+          E2E_PYTHON: python
+        run: npx playwright test

@@ -135,7 +135,11 @@ export function SituationCard({ profile }: { profile: ProfileV1 }) {
         <dt>Meses de reserva</dt>
         <dd>
           {profile.emergency_reserve_months === null ? "Sugerencia del plan" : `${profile.emergency_reserve_months} meses`}{" "}
-          {tag(profile.provenance.reserve_months)}
+          {profile.emergency_reserve_months === null && profile.provenance.reserve_months === "reported" ? (
+            <span className="tag">sugerencia</span>
+          ) : (
+            tag(profile.provenance.reserve_months)
+          )}
         </dd>
       </dl>
     </section>
@@ -145,7 +149,7 @@ export function SituationCard({ profile }: { profile: ProfileV1 }) {
 export function GoalsTable({ result, caption }: { result: PlanResult; caption: string }) {
   if (result.goals.length === 0) return <p>Este plan no tiene metas.</p>;
   return (
-    <div className="table-wrap">
+    <div className="table-wrap" tabIndex={0} role="region" aria-label={caption}>
       <table>
         <caption>{caption}</caption>
         <thead>
@@ -183,7 +187,7 @@ export function ScenarioComparison({ scenario }: { scenario: Scenario }) {
         Ingreso {fractionToPercent(scenario.income_change)} · Gastos {fractionToPercent(scenario.expense_change)} · Rendimiento anual{" "}
         {fractionToPercent(scenario.annual_return)}
       </p>
-      <div className="table-wrap">
+      <div className="table-wrap" tabIndex={0} role="region" aria-label="Comparación por moneda">
         <table>
           <caption>Comparación por moneda</caption>
           <thead>
@@ -208,7 +212,7 @@ export function ScenarioComparison({ scenario }: { scenario: Scenario }) {
           </tbody>
         </table>
       </div>
-      <div className="table-wrap">
+      <div className="table-wrap" tabIndex={0} role="region" aria-label="Comparación por meta">
         <table>
           <caption>Comparación por meta</caption>
           <thead>
@@ -243,7 +247,7 @@ export function ScenarioComparison({ scenario }: { scenario: Scenario }) {
 
 export function ReviewTable({ review }: { review: MonthlyReview }) {
   return (
-    <div className="table-wrap">
+    <div className="table-wrap" tabIndex={0} role="region" aria-label={`Aportes de ${formatMonth(review.period)} frente al plan`}>
       <table>
         <caption>Aportes de {formatMonth(review.period)} frente al plan</caption>
         <thead>
