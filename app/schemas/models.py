@@ -33,7 +33,7 @@ class Liability(BaseModel):
 class Goal(BaseModel):
     name: str = Field(min_length=1)
     target_amount: float = Field(ge=0)
-    current_amount: float = Field(default=0.0, ge=0, description="Registro el importe que ya ahorré para la meta.")
+    current_amount: float = Field(default=0.0, ge=0, description="Registro el importe ya ahorrado para la meta.")
     target_date: date | None = None
     horizon_months: int | None = Field(default=None, ge=1)
     priority: Literal["low", "medium", "high"] = "medium"

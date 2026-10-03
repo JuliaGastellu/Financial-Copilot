@@ -67,3 +67,16 @@ No ejecuté Docker ni hice QA visual. No inspeccioné el contenido binario de Ch
 Conservo FastAPI, módulos de dominio, repositorios y pruebas de contratos. Corrijo cálculo y privacidad antes de reemplazar la experiencia web. No necesito infraestructura distribuida para validar el primer producto.
 
 Mi secuencia está en [PLAN_PRODUCTO.md](PLAN_PRODUCTO.md). Los hallazgos describen trabajo pendiente; esta revisión no corrige el comportamiento de la aplicación.
+
+## Estado tras la etapa de contención
+
+Conservo los hallazgos anteriores como registro de la revisión. En esta etapa corregí solo lo siguiente:
+
+- **Fallback de `chunk_text()`.** Reproduje el bucle con el divisor principal indisponible: un texto de 899 o 900 caracteres no terminaba. Extraje `split_fixed_window()`, que corta al alcanzar el final y siempre avanza. Pruebo texto vacío, solo espacios, menor, exacto, largo, solapamiento y valores inválidos en procesos aislados con tiempo máximo; con el código anterior esas pruebas fallaban por timeout.
+- **Binarios de `data/chroma/`.** Agregué la exclusión correcta y retiré los cuatro archivos del árbol actual sin borrar las copias locales ni reescribir el historial. Inspeccioné solo metadatos: el encabezado del índice declara 768 dimensiones, coherentes con las representaciones hash, y 0 elementos; el buffer de 321.200 bytes tiene 43 bytes distintos de cero. No encontré indicios de texto o vectores de documentos, pero no lo afirmo como prueba de ausencia.
+- **Compose.** Uso `DATA_DIR`, `SQLITE_PATH` y `CHROMA_DIR`, que `Settings` sí consume, y agregué `.env.example` sin claves. Una prueba compara ambos archivos con los campos de `Settings`.
+- **Dependencias.** Fijé versiones directas, separé dependencias de pruebas y agregué locks para Python 3.11. Con una instalación limpia obtuve 46 pruebas aprobadas.
+
+Busqué en todo el historial local patrones habituales de claves (proveedor de modelos, nube, tokens de GitHub y claves privadas) y no obtuve coincidencias. No encontré motivos para rotar secretos. El commit con los binarios ya está en el remoto; si el repositorio es o fue público, evalúo una revisión del historial publicado, aunque los metadatos no indican contenido documental.
+
+Siguen pendientes los demás hallazgos P0 y P1, incluidos autenticación, aislamiento de documentos, cálculo de capital y presupuesto, Decimal y moneda, probabilidades heurísticas y el uso del modelo de lenguaje para decidir recomendaciones. Tampoco verifiqué `docker build`.

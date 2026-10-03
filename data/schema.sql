@@ -1,5 +1,5 @@
--- AI Financial Copilot — SQLite schema
--- All tables use CREATE TABLE IF NOT EXISTS for idempotent execution.
+-- Esquema SQLite de referencia del prototipo.
+-- Uso CREATE TABLE IF NOT EXISTS para poder repetir la ejecución sin errores.
 
 CREATE TABLE IF NOT EXISTS profiles (
     user_id     TEXT PRIMARY KEY,

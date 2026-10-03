@@ -23,15 +23,17 @@ python -m venv .venv
 En Windows activo el entorno con `.venv\Scripts\Activate.ps1`; en Linux o macOS uso `source .venv/bin/activate`.
 
 ```bash
-python -m pip install -r requirements.txt
+python -m pip install -r requirements-dev.lock
 python -m uvicorn app.main:app --host 127.0.0.1 --port 8000
 ```
+
+Separé las dependencias en cuatro archivos. `requirements.txt` fija las dependencias directas de ejecución y `requirements-dev.txt` agrega `pytest` y `httpx`. Generé `requirements.lock` y `requirements-dev.lock` con `uv pip compile --universal` para Python 3.11, acotando las transitivas con las versiones de un entorno donde la suite pasó. La imagen Docker instala `requirements.lock` y el flujo de integración continua instala `requirements-dev.lock`.
 
 Abro la interfaz en `http://127.0.0.1:8000/` y los contratos en `http://127.0.0.1:8000/docs`. También puedo usar `docker compose up --build` para desarrollo local.
 
 ## Configuración
 
-Uso el entorno o un `.env` local que no publico.
+Uso el entorno o un `.env` local que no publico. Parto de `.env.example`, que no contiene claves y usa los mismos nombres que `Settings` en `app/core/config.py`.
 
 | Variable | Uso que le doy |
 |---|---|
@@ -43,7 +45,11 @@ Uso el entorno o un `.env` local que no publico.
 | `CHROMA_DIR` | Defino la ubicación del índice vectorial. |
 | `ALLOWED_ORIGINS` | Configuro una lista JSON de orígenes permitidos. |
 
-Tengo pendiente corregir los nombres de variables de almacenamiento en Compose. En el despliegue serverless actual `/tmp/data` es temporal; no lo trato como almacenamiento durable.
+Corregí Compose para que use `DATA_DIR`, `SQLITE_PATH` y `CHROMA_DIR`; antes definía variables que `Settings` no leía. La base sigue en `/app/data/app.db` dentro del volumen. En el despliegue serverless actual `/tmp/data` es temporal; no lo trato como almacenamiento durable.
+
+## Datos generados
+
+No versiono `data/app.db` ni `data/chroma/`: los genera la aplicación al ejecutarse y pueden contener información cargada. Retiré del árbol actual los cuatro archivos de índice de `data/chroma/` que había versionado; las copias locales siguen en disco. Esos archivos permanecen en el historial de Git, que no reescribí.
 
 ## Organización
 
@@ -51,7 +57,9 @@ Mantengo API en `app/main.py`, casos de uso en `app/services/`, contratos en `ap
 
 ## Verificación
 
-Ejecuto la suite con `python -m pytest -q`. En la revisión del 3 de octubre de 2026 validé la sintaxis de 46 archivos Python y reproduje inconsistencias de asignación mediante ejecución directa. No pude ejecutar la suite completa porque el intérprete accesible no tenía `pytest`; no reporto pruebas aprobadas.
+Ejecuto la suite con `python -m pytest -q`. El 3 de octubre de 2026 instalé `requirements-dev.lock` en un entorno limpio de Python 3.11 en Windows y obtuve 46 pruebas aprobadas. No verifiqué la construcción de la imagen Docker porque el servicio de Docker no estaba disponible en mi equipo; sí comprobé que el lock se resuelve con paquetes binarios para Linux y Python 3.11.
+
+Las pruebas de fragmentación ejecutan cada caso en un proceso aislado con tiempo máximo, para detectar bucles en el divisor alternativo.
 
 ## Evolución
 
