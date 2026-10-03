@@ -7,8 +7,8 @@ from pydantic import BaseModel, Field, HttpUrl
 
 
 class ExpectedReturnRange(BaseModel):
-    min_annual: float = Field(description="Minimum expected annual return, expressed as a decimal (for example, 0.05 for 5%).")
-    max_annual: float = Field(description="Maximum expected annual return, expressed as a decimal (for example, 0.08 for 8%).")
+    min_annual: float = Field(description="Expreso el retorno anual mínimo ilustrativo como decimal: 0,05 representa 5%.")
+    max_annual: float = Field(description="Expreso el retorno anual máximo ilustrativo como decimal: 0,08 representa 8%.")
 
 
 class InvestmentHorizon(BaseModel):
@@ -20,7 +20,7 @@ class InvestmentOpportunity(BaseModel):
     instrument_id: str = Field(min_length=1)
     instrument_name: str = Field(min_length=1)
     asset_class: Literal["cash_equivalent", "bond", "equity", "retirement", "real_estate", "crypto", "other"]
-    market_country: str = Field(min_length=2, max_length=2, description="ISO 3166-1 alpha-2 country code.")
+    market_country: str = Field(min_length=2, max_length=2, description="Identifico el país con su código ISO 3166-1 de dos letras.")
     currency: str = Field(min_length=3, max_length=3)
     minimum_capital: float = Field(ge=0)
     liquidity_level: Literal["high", "medium", "low"]

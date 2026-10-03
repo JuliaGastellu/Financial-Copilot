@@ -1,11 +1,11 @@
-"""Apply the current schema to the configured SQLite database.
+"""Aplico el esquema actual a la base SQLite configurada.
 
-Usage:
+Uso este comando:
     python scripts/migrate.py [--db-path PATH]
 
-All DDL statements use CREATE TABLE/INDEX IF NOT EXISTS, so this script is safe
-to run multiple times (idempotent). For additive changes (new columns), add
-ALTER TABLE statements below the baseline DDL and guard them with a try/except.
+Uso CREATE TABLE/INDEX IF NOT EXISTS para poder repetir la aplicación del esquema.
+Para futuros cambios de columnas necesito migraciones explícitas y versionadas;
+este script solo aplica el esquema base actual.
 """
 from __future__ import annotations
 
@@ -13,7 +13,7 @@ import argparse
 import sys
 from pathlib import Path
 
-# Allow running from project root without installing the package
+# Permito ejecutar desde la raíz del proyecto sin instalar el paquete.
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from app.core.config import settings
@@ -27,8 +27,8 @@ def migrate(db_path: Path) -> None:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Apply database schema migrations.")
-    parser.add_argument("--db-path", type=Path, default=None, help="Path to SQLite database file.")
+    parser = argparse.ArgumentParser(description="Aplico el esquema base de la base de datos.")
+    parser.add_argument("--db-path", type=Path, default=None, help="Indico la ruta al archivo SQLite.")
     args = parser.parse_args()
 
     db_path = args.db_path or settings.resolved_sqlite_path()

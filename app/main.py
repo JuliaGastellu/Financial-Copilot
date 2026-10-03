@@ -92,12 +92,12 @@ def create_app(settings_override: Settings | None = None) -> FastAPI:
     app = FastAPI(
         title="AI Financial Copilot",
         description=(
-            "A deterministic financial copilot combining RAG-based contextual answering "
-            "with auditable investment opportunity matching.\n\n"
-            "**All recommendation logic is deterministic** — the same profile always produces "
-            "the same recommendations.\n\n"
-            "**Disclaimer:** This tool provides educational financial information only. "
-            "It does not constitute financial advice."
+            "Desarrollé un prototipo financiero con recuperación documental "
+            "y comparación explicable de un catálogo ilustrativo.\n\n"
+            "Uso reglas para los cálculos y filtros; cuando habilito un modelo de lenguaje, "
+            "también puede generar recomendaciones. Tengo pendiente limitarlo a explicación.\n\n"
+            "Presento información educativa. No ofrezco asesoramiento profesional "
+            "ni considero este prototipo apto para datos personales en un servicio público."
         ),
         version="1.0.0",
         lifespan=lifespan,

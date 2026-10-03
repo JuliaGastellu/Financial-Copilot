@@ -1,6 +1,6 @@
-# ── Claude Code ───────────────────────────────────────────────────────────────
-CLAUDE.md
-.claude/
+# Configuración privada de desarrollo
+/CL*.md
+/.cl*/
 skills/
 
 # ── Entornos virtuales ────────────────────────────────────────────────────────

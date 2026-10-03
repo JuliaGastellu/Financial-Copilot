@@ -12,8 +12,8 @@ class MoneyAmount(BaseModel):
 
 
 class Cashflow(BaseModel):
-    monthly_income: float = Field(ge=0, description="Total net monthly income.")
-    monthly_expenses: float = Field(ge=0, description="Total monthly expenses.")
+    monthly_income: float = Field(ge=0, description="Registro el ingreso neto mensual total.")
+    monthly_expenses: float = Field(ge=0, description="Registro los gastos mensuales totales.")
 
 
 class Asset(BaseModel):
@@ -26,14 +26,14 @@ class Asset(BaseModel):
 class Liability(BaseModel):
     name: str = Field(min_length=1)
     balance: float = Field(ge=0)
-    apr: float | None = Field(default=None, ge=0, le=100, description="Annual percentage rate (0–100).")
+    apr: float | None = Field(default=None, ge=0, le=100, description="Expreso la tasa anual como porcentaje entre 0 y 100.")
     minimum_payment: float | None = Field(default=None, ge=0)
 
 
 class Goal(BaseModel):
     name: str = Field(min_length=1)
     target_amount: float = Field(ge=0)
-    current_amount: float = Field(default=0.0, ge=0, description="Current amount already saved toward the goal.")
+    current_amount: float = Field(default=0.0, ge=0, description="Registro el importe que ya ahorré para la meta.")
     target_date: date | None = None
     horizon_months: int | None = Field(default=None, ge=1)
     priority: Literal["low", "medium", "high"] = "medium"

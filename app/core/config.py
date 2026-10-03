@@ -26,10 +26,10 @@ class Settings(BaseSettings):
     rag_top_k: int = 6
     rag_min_relevance: float = 0.15
 
-    # CORS: comma-separated or JSON list of allowed origins; "*" allows all
+    # Configuro orígenes con una lista JSON; "*" permite todos en el prototipo.
     allowed_origins: list[str] = Field(default_factory=lambda: ["*"])
 
-    # Rate limiting (requests per minute per IP). Set to 0 to disable.
+    # Limito solicitudes por minuto e IP; uso rate_limit_enabled para desactivarlo.
     rate_limit_enabled: bool = True
     rate_limit_recommendations: str = "10/minute"
     rate_limit_ingest: str = "5/minute"

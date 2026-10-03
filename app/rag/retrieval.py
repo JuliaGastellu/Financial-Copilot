@@ -26,9 +26,8 @@ def retrieve(
     k = top_k or settings.rag_top_k
     candidates: list[RetrievedChunk] = []
     try:
-        # Use similarity_search_with_score (returns raw distances) to avoid
-        # the out-of-range warning from similarity_search_with_relevance_scores
-        # when using hash embeddings whose cosine distances land outside [0, 1].
+        # Recupero distancias crudas para evitar advertencias de normalización.
+        # Mantengo esta transformación como heurística pendiente de evaluación.
         results = vector.store.similarity_search_with_score(query, k=k)
         for doc, dist in results:
             rel = max(0.0, min(1.0, 1.0 / (1.0 + float(dist))))
