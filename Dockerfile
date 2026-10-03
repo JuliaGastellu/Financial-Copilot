@@ -9,9 +9,9 @@ COPY requirements.lock .
 RUN pip install --no-cache-dir -r requirements.lock
 
 COPY app/ ./app/
-COPY public/ ./public/
 COPY scripts/ ./scripts/
-COPY data/schema.sql ./data/schema.sql
+COPY alembic.ini ./alembic.ini
+COPY migrations/ ./migrations/
 
 RUN mkdir -p /app/data
 
@@ -23,4 +23,5 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
 
 EXPOSE 8000
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "2"]
+# Uso un solo proceso: el índice Chroma local no admite varios procesos escribiendo a la vez.
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]

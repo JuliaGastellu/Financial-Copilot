@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from app.core.config import Settings
-from app.data.document_repo import DocumentRepository
+from app.data.documents import PUBLIC_CORPUS, PublicCorpusRepository
 from app.rag.vector_store import VectorStoreBundle
 
 
@@ -18,18 +18,22 @@ class RetrievedChunk:
 def retrieve(
     *,
     settings: Settings,
-    doc_repo: DocumentRepository,
+    corpus: PublicCorpusRepository,
     vector: VectorStoreBundle,
     query: str,
     top_k: int | None = None,
 ) -> list[RetrievedChunk]:
+    """Recupero solo del corpus público. El filtro va dentro de la búsqueda vectorial y de la SQL;
+    no recupero contenido ajeno para filtrarlo después."""
     k = top_k or settings.rag_top_k
     candidates: list[RetrievedChunk] = []
     try:
         # Recupero distancias crudas para evitar advertencias de normalización.
         # Mantengo esta transformación como heurística pendiente de evaluación.
-        results = vector.store.similarity_search_with_score(query, k=k)
+        results = vector.store.similarity_search_with_score(query, k=k, filter={"corpus": PUBLIC_CORPUS})
         for doc, dist in results:
+            if doc.metadata.get("corpus") != PUBLIC_CORPUS:
+                continue
             rel = max(0.0, min(1.0, 1.0 / (1.0 + float(dist))))
             candidates.append(
                 RetrievedChunk(content=doc.page_content, metadata=dict(doc.metadata), relevance=rel)
@@ -41,11 +45,18 @@ def retrieve(
         strong = [c for c in candidates if c.relevance >= settings.rag_min_relevance]
         return strong or candidates[:1]
 
-    keyword = doc_repo.keyword_search_chunks(query, limit=k)
+    keyword = corpus.keyword_search_chunks(query, limit=k)
     return [
         RetrievedChunk(
-            content=r.content,
-            metadata={"doc_id": r.doc_id, "chunk_id": r.chunk_id, "chunk_index": r.chunk_index},
+            content=r["content"],
+            metadata={
+                "doc_id": r["document_id"],
+                "chunk_id": r["id"],
+                "chunk_index": r["chunk_index"],
+                "title": r["title"],
+                "source": r["source"],
+                "corpus": PUBLIC_CORPUS,
+            },
             relevance=0.0,
         )
         for r in keyword

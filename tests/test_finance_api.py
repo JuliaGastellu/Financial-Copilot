@@ -1,4 +1,4 @@
-"""Contratos de API del plan y efectos de las restricciones sobre las decisiones."""
+"""Contratos del plan y efectos de las restricciones sobre las decisiones."""
 from __future__ import annotations
 
 import json
@@ -8,10 +8,11 @@ from typing import Any
 
 from app.finance import plan_for_profile
 from app.reasoning.engine import generate_recommendations
-from app.services.compat import strip_uncalibrated_indicators
+from tests.engine_helpers import match, recommend
+from tests.v1_payloads import goal_v1, money, profile_v1
 
 
-def _profile(user_id: str, **overrides: Any) -> dict[str, Any]:
+def _legacy_profile(user_id: str, **overrides: Any) -> dict[str, Any]:
     profile: dict[str, Any] = {
         "user_id": user_id,
         "country": "US",
@@ -30,25 +31,24 @@ def _profile(user_id: str, **overrides: Any) -> dict[str, Any]:
     return profile
 
 
-def _put(client, profile: dict[str, Any]) -> None:
-    res = client.put(f"/profiles/{profile['user_id']}", json={"profile": profile})
-    assert res.status_code == 200, res.text
+def _setup_v1(client, headers, cash: int = 8000) -> None:
+    profile = profile_v1(assets=[{"name": "Cash", "category": "cash", "liquidity": "high", "value": money(cash)}])
+    assert client.put("/v1/profile", json=profile, headers=headers).status_code == 200
+    for goal in (
+        goal_v1("Down payment", 20000, horizon_months=18, priority="high"),
+        goal_v1("Car", 9000, horizon_months=12, priority="medium"),
+        goal_v1("Trip", 3000, horizon_months=6, priority="low"),
+    ):
+        assert client.post("/v1/goals", json=goal, headers=headers).status_code == 201
 
 
-def _recommend(client, user_id: str) -> dict[str, Any]:
-    res = client.post("/recommendations", json={"user_id": user_id, "focus": "overview"})
-    assert res.status_code == 200, res.text
-    return res.json()
-
-
-def test_plan_endpoint_shape_and_missing_profile(test_client) -> None:
-    assert test_client.get("/plans/nobody").status_code == 404
-    _put(test_client, _profile("p1"))
-    res = test_client.get("/plans/p1")
-    assert res.status_code == 200
-    body = res.json()
+def test_plan_endpoint_shape(client, auth) -> None:
+    h = auth("p1")
+    _setup_v1(client, h)
+    res = client.post("/v1/plans", json={"as_of": "2026-10-03"}, headers=h)
+    assert res.status_code == 201
+    body = res.json()["plan"]
     assert body["base_currency"] == "USD"
-    assert body["policy_version"]
     usd = body["budgets"][0]
     assert usd["monthly"]["surplus"] == {"amount": "2500.00", "currency": "USD"}
     assert usd["monthly"]["allocated_total"]["amount"] == "2500.00"
@@ -57,21 +57,23 @@ def test_plan_endpoint_shape_and_missing_profile(test_client) -> None:
     assert "reserve_months_defaulted_to_3" in body["assumptions"]
 
 
-def test_responses_contain_no_uncalibrated_indicators(test_client) -> None:
-    _put(test_client, _profile("p2", assets=[{"name": "Cash", "value": 60000, "liquidity": "high"}]))
-    for text in (json.dumps(_recommend(test_client, "p2")), test_client.get("/plans/p2").text):
+def test_responses_contain_no_uncalibrated_indicators(client, auth) -> None:
+    h = auth("p2")
+    _setup_v1(client, h, cash=60000)
+    texts = [
+        client.post("/v1/plans", json={}, headers=h).text,
+        json.dumps(recommend(_legacy_profile("p2", assets=[{"name": "Cash", "value": 60000, "liquidity": "high"}]))),
+    ]
+    for text in texts:
         assert "probability" not in text
         assert "confidence" not in text
 
 
-def test_simultaneous_amounts_never_exceed_the_monthly_surplus(test_client) -> None:
+def test_simultaneous_amounts_never_exceed_the_monthly_surplus() -> None:
     for cash in (0, 8000, 13500, 60000):
-        user = f"sum-{cash}"
-        _put(test_client, _profile(user, assets=[{"name": "Cash", "value": cash, "liquidity": "high"}]))
-        body = _recommend(test_client, user)
+        body = recommend(_legacy_profile(f"sum-{cash}", assets=[{"name": "Cash", "value": cash, "liquidity": "high"}]))
         simultaneous = [r for r in body["recommendations"] if r["allocation_kind"] == "simultaneous"]
-        total = sum(Decimal(str(r["suggested_amount"] or 0)) for r in simultaneous)
-        assert total <= Decimal("2500")
+        assert sum(Decimal(str(r["suggested_amount"] or 0)) for r in simultaneous) <= Decimal("2500")
         goal_recs = [r for r in simultaneous if r["plan_action"] == "goals"]
         if goal_recs:
             assert sum(Decimal(g["monthly_allocation"]["amount"]) for g in goal_recs[0]["impacted_goals"]) <= Decimal("2500")
@@ -80,76 +82,63 @@ def test_simultaneous_amounts_never_exceed_the_monthly_surplus(test_client) -> N
                 assert r["suggested_amount"] is None
 
 
-def test_reserve_gap_blocks_catalog_options(test_client) -> None:
-    _put(test_client, _profile("p3"))
-    body = _recommend(test_client, "p3")
-    assert not [r for r in body["recommendations"] if r.get("opportunity")]
-    res = test_client.get("/opportunities/match/p3")
-    trace = res.json()["decision_trace"]
-    assert res.json()["matches"] == []
+def test_reserve_gap_blocks_catalog_options() -> None:
+    profile = _legacy_profile("p3")
+    assert not [r for r in recommend(profile)["recommendations"] if r.get("opportunity")]
+    result = match(profile)
+    trace = result["decision_trace"]
+    assert result["matches"] == []
     assert trace["eligible_opportunities"] == []
     assert all("blocked_by_constraint:insufficient_emergency_fund" in r["reasons"] for r in trace["rejected_opportunities"])
     assert trace["input_summary"]["estimated_available_capital"] == 0.0
 
 
-def test_deficit_blocks_catalog_options_and_allocations(test_client) -> None:
-    _put(test_client, _profile("p4", cashflow={"monthly_income": 3000, "monthly_expenses": 3500}, assets=[{"name": "Cash", "value": 90000, "liquidity": "high"}]))
-    body = _recommend(test_client, "p4")
+def test_deficit_blocks_catalog_options_and_allocations() -> None:
+    profile = _legacy_profile(
+        "p4", cashflow={"monthly_income": 3000, "monthly_expenses": 3500}, assets=[{"name": "Cash", "value": 90000, "liquidity": "high"}]
+    )
+    body = recommend(profile)
     assert not [r for r in body["recommendations"] if r.get("opportunity")]
     assert any(r["title"].startswith("Reduce the cashflow deficit") for r in body["recommendations"])
-    plan = body["decision_context"]["plan"]
-    assert plan["budgets"][0]["monthly"]["allocated_total"]["amount"] == "0.00"
-    trace = test_client.get("/opportunities/match/p4").json()["decision_trace"]
+    assert body["decision_context"]["plan"]["budgets"][0]["monthly"]["allocated_total"]["amount"] == "0.00"
+    trace = match(profile)["decision_trace"]
     assert all("blocked_by_constraint:negative_cashflow" in r["reasons"] for r in trace["rejected_opportunities"])
 
 
-def test_non_finite_amounts_and_bad_currencies_are_rejected(test_client) -> None:
-    raw = json.dumps({"profile": _profile("p5")}).replace('"monthly_income": 7000', '"monthly_income": NaN')
-    res = test_client.put("/profiles/p5", content=raw, headers={"Content-Type": "application/json"})
+def test_non_finite_amounts_and_bad_currencies_are_rejected(client, auth) -> None:
+    h = auth("p5")
+    raw = json.dumps(profile_v1()).replace('"monthly_income": "7000"', '"monthly_income": NaN')
+    res = client.put("/v1/profile", content=raw, headers={**h, "Content-Type": "application/json"})
     assert res.status_code == 422
-    res = test_client.put("/profiles/p5", json={"profile": _profile("p5", currency="DOLLARS")})
-    assert res.status_code == 422
-    res = test_client.put(
-        "/profiles/p5",
-        json={"profile": _profile("p5", additional_cashflows=[{"currency": "USD", "monthly_income": 1}])},
-    )
-    assert res.status_code == 422
+    assert client.put("/v1/profile", json=profile_v1(currency="DOLLARS"), headers=h).status_code == 422
+    duplicate = profile_v1(cashflows=[{"currency": "USD", "monthly_income": "1", "monthly_expenses": "0"}] * 2)
+    assert client.put("/v1/profile", json=duplicate, headers=h).status_code == 422
 
 
-def test_dates_are_persisted_and_overdue_goals_are_reported(test_client) -> None:
-    goals = [{"name": "Late", "target_amount": 5000, "target_date": "2000-01-01", "priority": "high"}]
-    _put(test_client, _profile("p6", goals=goals))
-    assert test_client.get("/profiles/p6").json()["profile"]["goals"][0]["target_date"] == "2000-01-01"
-    plan = test_client.get("/plans/p6").json()
+def test_dates_are_persisted_and_overdue_goals_are_reported(client, auth) -> None:
+    h = auth("p6")
+    assert client.put("/v1/profile", json=profile_v1(), headers=h).status_code == 200
+    goal = goal_v1("Late", 5000, target_date="2000-01-01", horizon_months=None)
+    created = client.post("/v1/goals", json=goal, headers=h)
+    assert created.status_code == 201
+    assert created.json()["target_date"] == "2000-01-01"
+    plan = client.post("/v1/plans", json={}, headers=h).json()["plan"]
     assert plan["goals"][0]["status"] == "overdue"
 
 
-def test_legacy_decisions_are_read_without_uncalibrated_indicators(test_client) -> None:
-    decisions = test_client.app.state.container.decisions
-    decisions.create(
-        user_id="legacy",
-        decision={
-            "recommendations": [
-                {
-                    "title": "Old",
-                    "impacted_goals": [{"goal_name": "G", "probability_of_success": 0.7, "confidence": 0.9}],
-                    "projected_impact": {"time_delta": -2, "confidence": 0.8, "explanation": "x"},
-                }
-            ],
-            "decision_context": {"available_capital": 10500.0},
-            "mode": "offline",
-        },
-    )
-    body = test_client.get("/decisions/legacy").json()
-    text = json.dumps(body[0]["recommendations"])
-    assert "probability_of_success" not in text and "confidence" not in text
-    assert body[0]["decision_context"]["legacy_indicators_removed"] == ["confidence", "probability_of_success"]
-    assert body[0]["recommendations"][0]["projected_impact"]["time_delta"] == -2
+def test_legacy_decision_history_route_is_retired(client, auth) -> None:
+    # /decisions/{user_id} exponía historial por un identificador de la URL; no lo mantengo.
+    assert client.get("/decisions/legacy").status_code == 404
+    assert client.get("/decisions/legacy", headers=auth("legacy")).status_code == 404
 
 
-def test_strip_is_a_no_op_for_current_records() -> None:
-    record = {"recommendations": [{"title": "x"}], "decision_context": {"a": 1}}
-    assert strip_uncalibrated_indicators(record) == record
+def test_plan_inputs_allow_reproduction(client, auth) -> None:
+    h = auth("p7")
+    _setup_v1(client, h)
+    first = client.post("/v1/plans", json={"as_of": "2026-10-03"}, headers=h).json()
+    second = client.post("/v1/plans", json={"as_of": "2026-10-03"}, headers=h).json()
+    assert first["id"] != second["id"]
+    assert first["plan"] == second["plan"]
 
 
 class _FakeLlm:
@@ -161,7 +150,7 @@ class _FakeLlm:
 
 
 def test_language_model_cannot_set_amounts_or_plan_actions() -> None:
-    profile = _profile("llm", assets=[{"name": "Cash", "value": 13500, "liquidity": "high"}])
+    profile = _legacy_profile("llm", assets=[{"name": "Cash", "value": 13500, "liquidity": "high"}])
     plan = plan_for_profile(profile, date(2026, 10, 3))
     llm = _FakeLlm(
         {

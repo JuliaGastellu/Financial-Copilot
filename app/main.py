@@ -2,10 +2,9 @@ from __future__ import annotations
 
 import time
 from contextlib import asynccontextmanager
-from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse
@@ -15,29 +14,32 @@ from slowapi.util import get_remote_address
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import Response
-from starlette.staticfiles import StaticFiles
 
+from app.api.v1 import build_v1_router
+from app.auth.tokens import JwksCache, JwksSource, TokenVerifier, build_jwks_source
 from app.core.config import Settings, settings as default_settings
 from app.core.observability import RequestIdMiddleware, configure_logging, log_event
+from app.db.engine import current_revision, head_revision
 from app.opportunity_engine.models import InvestmentOpportunity
-from app.schemas.models import (
-    DecisionRecord,
-    HealthResponse,
-    IngestDocumentRequest,
-    IngestDocumentResponse,
-    PlanResponse,
-    ProfileResponse,
-    ProfileUpsertRequest,
-    QueryRequest,
-    QueryResponse,
-    ReadyCheck,
-    RecommendationRequest,
-    RecommendationResponse,
-)
-from app.services.container import AppContainer, build_container
-from app.services.financial_copilot import FinancialCopilotService
+from app.schemas.models import HealthResponse, ReadyCheck
+from app.services.container import build_container
 
-_limiter = Limiter(key_func=get_remote_address)
+
+def _rate_limit_key(request: Request) -> str:
+    # Limito por cuenta cuando el token ya fue verificado; si no, por IP.
+    return getattr(request.state, "rate_limit_key", None) or get_remote_address(request)
+
+
+_limiter = Limiter(key_func=_rate_limit_key)
+
+_NOTICE = """<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Financial Copilot</title></head>
+<body style="font-family: system-ui, sans-serif; max-width: 40rem; margin: 3rem auto; padding: 0 1rem;">
+<h1>Financial Copilot</h1>
+<p>La nueva experiencia web está en preparación. La API requiere iniciar sesión con un proveedor de identidad.</p>
+<p>Información educativa; no es asesoramiento profesional.</p>
+</body></html>"""
 
 
 class TimingMiddleware(BaseHTTPMiddleware):
@@ -53,24 +55,26 @@ class TimingMiddleware(BaseHTTPMiddleware):
             status_code=response.status_code,
             duration_ms=duration_ms,
             request_id=getattr(request.state, "request_id", "unknown"),
+            user_id=getattr(request.state, "user_id", None),
         )
         return response
 
 
-def _build_service(container: AppContainer) -> FinancialCopilotService:
-    return FinancialCopilotService(
-        settings=container.settings,
-        profiles=container.profiles,
-        documents=container.documents,
-        decisions=container.decisions,
-        vector=container.vector,
-        llm=container.llm,
-        opportunities=container.opportunities,
+def _build_verifier(app_settings: Settings, jwks_source: JwksSource | None) -> TokenVerifier | None:
+    if not app_settings.oidc_issuer or not app_settings.oidc_audience:
+        return None
+    source = jwks_source or build_jwks_source(app_settings)
+    cache = JwksCache(
+        source,
+        ttl_seconds=app_settings.jwks_cache_seconds,
+        min_refresh_seconds=app_settings.jwks_min_refresh_seconds,
     )
+    return TokenVerifier(app_settings, cache)
 
 
-def create_app(settings_override: Settings | None = None) -> FastAPI:
+def create_app(settings_override: Settings | None = None, *, jwks_source: JwksSource | None = None) -> FastAPI:
     app_settings = settings_override or default_settings
+    app_settings.validate_runtime()
     rate_limiting = app_settings.rate_limit_enabled and app_settings.environment != "test"
 
     def _limit(limit_str: str):
@@ -78,46 +82,44 @@ def create_app(settings_override: Settings | None = None) -> FastAPI:
             return _limiter.limit(limit_str)
         return lambda f: f
 
-    ui_dir = (Path.cwd() / "public").resolve()
-    if not (ui_dir / "index.html").exists():
-        ui_dir = (Path(__file__).resolve().parent / "public").resolve()
-
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         configure_logging()
-        app_settings.data_dir.mkdir(parents=True, exist_ok=True)
-        container = build_container(app_settings)
-        app.state.container = container
-        app.state.service = _build_service(container)
+        app.state.container = build_container(app_settings)
         yield
+        app.state.container.engine.dispose()
 
+    production = app_settings.environment == "production"
     app = FastAPI(
-        title="AI Financial Copilot",
+        title="Financial Copilot API",
         description=(
-            "Desarrollé un prototipo financiero con recuperación documental "
-            "y comparación explicable de un catálogo ilustrativo.\n\n"
-            "Uso reglas para los cálculos y filtros; cuando habilito un modelo de lenguaje, "
-            "también puede generar recomendaciones. Tengo pendiente limitarlo a explicación.\n\n"
-            "Presento información educativa. No ofrezco asesoramiento profesional "
-            "ni considero este prototipo apto para datos personales en un servicio público."
+            "Desarrollé una API para planificar ingresos, gastos, deudas y metas con reglas explícitas.\n\n"
+            "Las rutas /v1 exigen un token de acceso OIDC; la cuenta sale del token, nunca de la URL ni del cuerpo.\n\n"
+            "Presento información educativa. No ofrezco asesoramiento profesional."
         ),
-        version="1.0.0",
+        version="0.2.0",
         lifespan=lifespan,
+        docs_url=None if production else "/docs",
+        redoc_url=None,
+        openapi_url=None if production else "/openapi.json",
     )
+    app.state.settings = app_settings
+    app.state.token_verifier = _build_verifier(app_settings, jwks_source)
 
     app.state.limiter = _limiter
     app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
+    # Uso tokens en encabezado, no cookies: no habilito credenciales en CORS.
     app.add_middleware(
         CORSMiddleware,
         allow_origins=app_settings.allowed_origins,
-        allow_credentials=True,
+        allow_credentials=False,
         allow_methods=["GET", "POST", "PUT", "DELETE"],
-        allow_headers=["*"],
+        allow_headers=["Authorization", "Content-Type", "X-Request-ID"],
+        max_age=600,
     )
     app.add_middleware(TimingMiddleware)
     app.add_middleware(RequestIdMiddleware)
-    app.mount("/static", StaticFiles(directory=str(ui_dir)), name="static")
 
     @app.exception_handler(RequestValidationError)
     async def validation_exception_handler(request: Request, exc: RequestValidationError) -> JSONResponse:
@@ -128,11 +130,14 @@ def create_app(settings_override: Settings | None = None) -> FastAPI:
     @app.exception_handler(Exception)
     async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
         request_id = getattr(request.state, "request_id", "unknown")
-        log_event("request_failed", request_id=request_id, error=str(exc), exc_type=type(exc).__name__)
-        return JSONResponse(
-            status_code=500,
-            content={"detail": "Internal server error", "request_id": request_id},
-        )
+        log_event("request_failed", request_id=request_id, exc_type=type(exc).__name__)
+        return JSONResponse(status_code=500, content={"detail": "Internal server error", "request_id": request_id})
+
+    @app.middleware("http")
+    async def auth_configured(request: Request, call_next: Any) -> Response:
+        if request.url.path.startswith("/v1/") and app.state.token_verifier is None:
+            return JSONResponse(status_code=503, content={"detail": "Authentication is not configured."})
+        return await call_next(request)
 
     @app.get("/health", response_model=HealthResponse, tags=["ops"])
     def health() -> HealthResponse:
@@ -141,179 +146,35 @@ def create_app(settings_override: Settings | None = None) -> FastAPI:
     @app.get("/ready", response_model=ReadyCheck, tags=["ops"])
     def ready() -> JSONResponse:
         checks: dict[str, str] = {}
+        container = app.state.container
         try:
-            container: AppContainer = app.state.container
-            with container.db.connect() as conn:
-                conn.execute("SELECT 1").fetchone()
-            checks["database"] = "ok"
+            revision = current_revision(container.engine)
+            head = head_revision(app_settings.resolved_database_url())
+            checks["database"] = "ok" if revision == head else "error: migrations pending"
         except Exception as exc:
-            checks["database"] = f"error: {exc}"
+            checks["database"] = f"error: {type(exc).__name__}"
         try:
-            container = app.state.container
             container.vector.store.get(limit=1)
             checks["vector_store"] = "ok"
         except Exception as exc:
-            checks["vector_store"] = f"error: {exc}"
-
+            checks["vector_store"] = f"error: {type(exc).__name__}"
+        checks["authentication"] = "ok" if app.state.token_verifier is not None else "error: not configured"
         all_ok = all(v == "ok" for v in checks.values())
-        status = "ready" if all_ok else "degraded"
-        return JSONResponse(
-            status_code=200 if all_ok else 503,
-            content={"status": status, "checks": checks},
-        )
+        return JSONResponse(status_code=200 if all_ok else 503, content={"status": "ready" if all_ok else "degraded", "checks": checks})
 
-    @app.put("/profiles/{user_id}", response_model=ProfileResponse, tags=["profiles"])
-    def upsert_profile(user_id: str, payload: ProfileUpsertRequest, request: Request) -> ProfileResponse:
-        service: FinancialCopilotService = app.state.service
-        profile = payload.profile.model_dump(mode="json")
-        if profile.get("user_id") != user_id:
-            raise HTTPException(status_code=400, detail="Path user_id must match profile.user_id.")
-        service.upsert_profile(user_id=user_id, profile=profile, request_id=request.state.request_id)
-        stored = service.get_profile(user_id, request_id=request.state.request_id)
-        if stored is None:
-            raise HTTPException(status_code=500, detail="Failed to persist profile.")
-        return ProfileResponse(profile=payload.profile)
+    @app.get("/opportunities", response_model=list[InvestmentOpportunity], tags=["catalog"])
+    @_limit(app_settings.rate_limit_default)
+    def list_opportunities(request: Request, market_country: str | None = None, currency: str | None = None) -> list[InvestmentOpportunity]:
+        # Catálogo ilustrativo público: no contiene datos de personas.
+        return app.state.container.opportunities.filter(market_country=market_country, currency=currency)
 
-    @app.get("/profiles/{user_id}", response_model=ProfileResponse, tags=["profiles"])
-    def get_profile(user_id: str, request: Request) -> ProfileResponse:
-        service: FinancialCopilotService = app.state.service
-        stored = service.get_profile(user_id, request_id=request.state.request_id)
-        if stored is None:
-            raise HTTPException(status_code=404, detail="Profile not found.")
-        return ProfileResponse(profile=_dict_to_profile(stored))
-
-    @app.post("/context/ingest", response_model=IngestDocumentResponse, tags=["rag"])
-    @_limit(app_settings.rate_limit_ingest)
-    def ingest(payload: IngestDocumentRequest, request: Request) -> IngestDocumentResponse:
-        service: FinancialCopilotService = app.state.service
-        content = _extract_content(payload.content, payload.content_type)
-        result = service.ingest(
-            title=payload.title,
-            source=payload.source,
-            content=content,
-            request_id=request.state.request_id,
-        )
-        return IngestDocumentResponse(doc_id=result.doc_id, chunks_indexed=result.chunks_indexed)
-
-    @app.post("/query", response_model=QueryResponse, tags=["rag"])
-    @_limit(app_settings.rate_limit_query)
-    def query(payload: QueryRequest, request: Request) -> QueryResponse:
-        service: FinancialCopilotService = app.state.service
-        try:
-            result = service.query(
-                user_id=payload.user_id,
-                query=payload.query,
-                top_k=payload.top_k,
-                include_recommendations=payload.include_recommendations,
-                request_id=request.state.request_id,
-            )
-        except KeyError:
-            raise HTTPException(status_code=404, detail="Profile not found.")
-        return QueryResponse(
-            answer=result.answer,
-            recommendations=result.recommendations,
-            citations=result.citations,
-            mode=result.mode,
-            fallback_used=result.fallback_used,
-            fallback_reason=result.fallback_reason,
-        )
-
-    @app.post("/recommendations", response_model=RecommendationResponse, tags=["recommendations"])
-    @_limit(app_settings.rate_limit_recommendations)
-    def recommendations(payload: RecommendationRequest, request: Request) -> RecommendationResponse:
-        service: FinancialCopilotService = app.state.service
-        try:
-            result = service.recommendations(
-                user_id=payload.user_id,
-                focus=payload.focus,
-                request_id=request.state.request_id,
-            )
-        except KeyError:
-            raise HTTPException(status_code=404, detail="Profile not found.")
-        return RecommendationResponse(
-            metrics=result.metrics,
-            recommendations=result.recommendations,
-            mode=result.mode,
-            decision_context=result.decision_context,
-        )
-
-    @app.get("/plans/{user_id}", response_model=PlanResponse, tags=["plans"])
-    @_limit(app_settings.rate_limit_plans)
-    def get_plan(user_id: str, request: Request) -> PlanResponse:
-        service: FinancialCopilotService = app.state.service
-        try:
-            payload = service.plan(user_id=user_id, request_id=request.state.request_id)
-        except KeyError:
-            raise HTTPException(status_code=404, detail="Profile not found.")
-        return PlanResponse(**payload)
-
-    @app.get("/opportunities", response_model=list[InvestmentOpportunity], tags=["opportunities"])
-    def list_opportunities(
-        market_country: str | None = None, currency: str | None = None
-    ) -> list[InvestmentOpportunity]:
-        service: FinancialCopilotService = app.state.service
-        ops = service.opportunities.filter(market_country=market_country, currency=currency)
-        return ops
-
-    @app.get("/opportunities/match/{user_id}", tags=["opportunities"])
-    def match_opportunities(user_id: str) -> dict:
-        service: FinancialCopilotService = app.state.service
-        try:
-            return service.match_opportunities(user_id=user_id)
-        except KeyError:
-            raise HTTPException(status_code=404, detail="Profile not found.")
-
-    @app.get("/decisions/{user_id}", response_model=list[DecisionRecord], tags=["decisions"])
-    def list_decisions(user_id: str, limit: int = 50) -> list[dict]:
-        service: FinancialCopilotService = app.state.service
-        return service.list_decisions(user_id=user_id, limit=limit)
+    app.include_router(build_v1_router(app_settings, _limit))
 
     @app.get("/", response_class=HTMLResponse, include_in_schema=False)
     def index() -> HTMLResponse:
-        return HTMLResponse(content=_read_ui_index(ui_dir), status_code=200)
-
-    @app.get("/styles.css", include_in_schema=False)
-    def styles_fallback():
-        path = ui_dir / "styles.css"
-        if path.exists():
-            from fastapi.responses import FileResponse
-            return FileResponse(path)
-        raise HTTPException(status_code=404)
-
-    @app.get("/app.js", include_in_schema=False)
-    def js_fallback():
-        path = ui_dir / "app.js"
-        if path.exists():
-            from fastapi.responses import FileResponse
-            return FileResponse(path)
-        raise HTTPException(status_code=404)
+        return HTMLResponse(content=_NOTICE, status_code=200)
 
     return app
-
-
-def _dict_to_profile(profile_dict: dict) -> "FinancialProfile":
-    from app.schemas.models import FinancialProfile
-    return FinancialProfile.model_validate(profile_dict)
-
-
-def _extract_content(content: str, content_type: str) -> str:
-    if content_type == "html":
-        try:
-            from bs4 import BeautifulSoup
-            soup = BeautifulSoup(content, "html.parser")
-            for tag in soup(["script", "style", "nav", "footer", "head"]):
-                tag.decompose()
-            return soup.get_text(separator="\n", strip=True)
-        except ImportError:
-            return content
-    return content
-
-
-def _read_ui_index(ui_dir: Path) -> str:
-    index_path = ui_dir / "index.html"
-    if not index_path.exists():
-        return "<html><body><h1>UI not found</h1><p>Missing public/index.html</p></body></html>"
-    return index_path.read_text(encoding="utf-8")
 
 
 app = create_app()

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from tests.engine_helpers import recommend
+
 from app.opportunity_engine.evaluation import evaluate_opportunities_with_trace
 from app.opportunity_engine.repository import OpportunityRepository
 
@@ -69,7 +71,7 @@ def test_decision_trace_structure_and_rejections():
     assert isinstance(matches, list)
 
 
-def test_recommendation_includes_decision_trace_and_components(test_client):
+def test_recommendation_includes_decision_trace_and_components():
     profile = {
         "user_id": "trace-api-user",
         "country": "US",
@@ -81,12 +83,8 @@ def test_recommendation_includes_decision_trace_and_components(test_client):
         "goals": [{"name": "Home down payment", "target_amount": 20000, "horizon_months": 18, "priority": "high"}],
         "preferences": {"currency": "USD"},
     }
-    res = test_client.put("/profiles/trace-api-user", json={"profile": profile})
-    assert res.status_code == 200
-
-    res = test_client.post("/recommendations", json={"user_id": "trace-api-user", "focus": "overview"})
-    assert res.status_code == 200
-    body = res.json()
+    # Antes llamaba a /recommendations; retiré la ruta y pruebo el mismo flujo del motor.
+    body = recommend(profile)
 
     opportunity_recs = [
         r

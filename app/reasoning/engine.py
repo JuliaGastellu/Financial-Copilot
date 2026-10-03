@@ -79,12 +79,17 @@ def extractive_answer(query: str, context: str, max_sentences: int = 5) -> str:
             "Ingest relevant economic notes or documents, then retry the same question."
         )
     sentences: list[str] = []
+    short: list[str] = []
     for block in context.split("\n\n---\n\n"):
         parts = _sentence_re.split(block.strip())
         for p in parts:
             p = p.strip()
             if len(p) >= 40:
                 sentences.append(p)
+            elif p:
+                short.append(p)
+    # Si el contexto solo tiene oraciones cortas, las uso en lugar de responder vacío.
+    sentences = sentences or short
     scored = sorted(((s, _keyword_overlap_score(query, s)) for s in sentences), key=lambda x: x[1], reverse=True)
     selected = [s for s, sc in scored if sc > 0][:max_sentences]
     if not selected:

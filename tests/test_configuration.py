@@ -10,7 +10,8 @@ from app.core.config import Settings
 
 ROOT = Path(__file__).resolve().parents[1]
 SETTINGS_ENV_NAMES = {name.upper() for name in Settings.model_fields}
-SECRET_NAMES = {"OPENAI_API_KEY"}
+SECRET_NAMES = {"OPENAI_API_KEY", "PRIVACY_HASH_KEY", "POSTGRES_PASSWORD"}
+COMPOSE_ONLY_NAMES = {"POSTGRES_PASSWORD"}
 
 
 def _compose_environment() -> dict[str, str]:
@@ -40,14 +41,22 @@ def test_compose_storage_resolves_inside_volume(monkeypatch: pytest.MonkeyPatch)
     for key, value in _compose_environment().items():
         monkeypatch.setenv(key, value)
     settings = Settings(_env_file=None)
-    assert settings.resolved_sqlite_path().as_posix() == "/app/data/app.db"
+    # La base relacional es PostgreSQL en el servicio db; el índice queda en el volumen.
+    assert settings.resolved_database_url().startswith("postgresql+psycopg://copilot:")
+    assert settings.resolved_database_url().endswith("@db:5432/copilot")
     assert settings.resolved_chroma_dir().as_posix() == "/app/data/chroma"
     assert settings.offline_mode is True
 
 
+def test_compose_has_no_hardcoded_database_password() -> None:
+    text = (ROOT / "docker-compose.yml").read_text(encoding="utf-8")
+    assert "${POSTGRES_PASSWORD:?" in text
+    assert "POSTGRES_PASSWORD: ${POSTGRES_PASSWORD" in text
+
+
 def test_env_example_uses_known_variables_without_secrets() -> None:
     env = _env_example()
-    unknown = sorted(set(env) - SETTINGS_ENV_NAMES)
+    unknown = sorted(set(env) - SETTINGS_ENV_NAMES - COMPOSE_ONLY_NAMES)
     assert unknown == []
     for name in SECRET_NAMES:
         assert not env.get(name), f"{name} no debe tener valor en .env.example"
@@ -60,3 +69,6 @@ def test_env_example_parses_into_settings(monkeypatch: pytest.MonkeyPatch) -> No
     assert settings.offline_mode is True
     assert settings.openai_api_key is None
     assert settings.allowed_origins == ["http://127.0.0.1:8000"]
+    assert settings.database_url is None
+    assert settings.oidc_jwks_url == "file:data/dev_identity/jwks.json"
+    settings.validate_runtime()

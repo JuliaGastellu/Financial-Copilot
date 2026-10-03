@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from app.core.config import Settings
-from app.data.document_repo import DocumentRepository
+from app.data.documents import PUBLIC_CORPUS, PublicCorpusRepository
 from app.rag.vector_store import VectorStoreBundle
 
 
@@ -56,18 +56,20 @@ def chunk_text(settings: Settings, text: str) -> list[str]:
         )
 
 
-def ingest_document(
+def ingest_public_document(
     *,
     settings: Settings,
-    doc_repo: DocumentRepository,
+    corpus: PublicCorpusRepository,
     vector: VectorStoreBundle,
     title: str,
     source: str | None,
     content: str,
 ) -> IngestionResult:
-    doc = doc_repo.create_document(title=title, source=source, content=content)
-    chunks = chunk_text(settings, content)
-    chunk_records = doc_repo.add_chunks(doc.doc_id, chunks)
+    """Ingiero un documento del corpus público curado. Repetir la ingesta no duplica contenido."""
+    doc = corpus.create_document(title=title, source=source, content=content)
+    if not doc.created:
+        return IngestionResult(doc_id=doc.doc_id, chunks_indexed=0)
+    chunk_records = corpus.add_chunks(doc.doc_id, chunk_text(settings, content))
     texts = [c.content for c in chunk_records]
     ids = [c.chunk_id for c in chunk_records]
     metadatas = [
@@ -76,14 +78,17 @@ def ingest_document(
             "chunk_id": c.chunk_id,
             "chunk_index": c.chunk_index,
             "title": title,
-            "source": source,
+            "source": source or "",
             "sha256": c.sha256,
+            "corpus": PUBLIC_CORPUS,
         }
         for c in chunk_records
     ]
-
-    try:
-        vector.store.add_texts(texts=texts, metadatas=metadatas, ids=ids)
-    except Exception as exc:
-        raise RuntimeError("Failed to index document chunks in the vector store.") from exc
+    if texts:
+        try:
+            vector.store.add_texts(texts=texts, metadatas=metadatas, ids=ids)
+        except Exception as exc:
+            # Revierto el documento para que un reintento vuelva a indexarlo.
+            corpus.delete_document(doc.doc_id)
+            raise RuntimeError("Failed to index document chunks in the vector store.") from exc
     return IngestionResult(doc_id=doc.doc_id, chunks_indexed=len(chunk_records))

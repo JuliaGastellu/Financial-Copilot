@@ -1,17 +1,42 @@
 version: "3.9"
+# Entorno local con PostgreSQL. No lo uso como despliegue de producción.
+# Defino POSTGRES_PASSWORD en un .env local que no se versiona.
 services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: copilot
+      POSTGRES_DB: copilot
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+    volumes:
+      - copilot_pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U copilot -d copilot"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
   api:
     build: .
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
     environment:
+      - ENVIRONMENT=local
+      - DATABASE_URL=postgresql+psycopg://copilot:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@db:5432/copilot
       - DATA_DIR=/app/data
-      - SQLITE_PATH=/app/data/app.db
       - CHROMA_DIR=/app/data/chroma
       - OFFLINE_MODE=true
+      - OIDC_ISSUER=${OIDC_ISSUER:-}
+      - OIDC_AUDIENCE=${OIDC_AUDIENCE:-}
+      - OIDC_JWKS_URL=${OIDC_JWKS_URL:-}
+    depends_on:
+      db:
+        condition: service_healthy
     volumes:
       - copilot_data:/app/data
     restart: unless-stopped
 
 volumes:
   copilot_data:
+  copilot_pg:

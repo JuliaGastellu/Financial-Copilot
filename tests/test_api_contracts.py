@@ -1,133 +1,51 @@
 from __future__ import annotations
 
-
-def _create_profile(user_id: str) -> dict:
-    return {
-        "user_id": user_id,
-        "country": "US",
-        "risk_tolerance": "medium",
-        "cashflow": {"monthly_income": 5000, "monthly_expenses": 3800},
-        "assets": [{"name": "Checking", "category": "cash", "value": 4000, "liquidity": "high"}],
-        "liabilities": [{"name": "Card", "balance": 1200, "apr": 22.0, "minimum_payment": 60}],
-        "goals": [{"name": "Emergency fund", "target_amount": 12000, "horizon_months": 12, "priority": "high"}],
-        "preferences": {"constraints": ["no leverage"]},
-    }
+from app.rag.ingestion import ingest_public_document
+from tests.v1_payloads import goal_v1, profile_v1
 
 
-def test_contract_profiles_get_response_shape(test_client):
-    profile = _create_profile("c1")
-    res = test_client.put("/profiles/c1", json={"profile": profile})
-    assert res.status_code == 200
-
-    res = test_client.get("/profiles/c1")
-    assert res.status_code == 200
-    body = res.json()
-    assert set(body.keys()) == {"profile"}
-    assert isinstance(body["profile"], dict)
-    assert body["profile"]["user_id"] == "c1"
-
-
-def test_contract_query_response_shape_with_docs(test_client):
-    profile = _create_profile("c2")
-    res = test_client.put("/profiles/c2", json={"profile": profile})
-    assert res.status_code == 200
-
-    res = test_client.post(
-        "/context/ingest",
-        json={
-            "title": "Macro",
-            "source": "contract-test",
-            "content": "Policy rates remain elevated. Inflation eased compared to last year.",
-        },
+def _ingest(client, content: str) -> None:
+    container = client.app.state.container
+    ingest_public_document(
+        settings=container.settings, corpus=container.corpus, vector=container.vector, title="Macro", source="contract-test", content=content
     )
-    assert res.status_code == 200
 
-    res = test_client.post("/query", json={"user_id": "c2", "query": "How do rates affect my decisions?"})
+
+def test_contract_profile_get_response_shape(client, auth):
+    assert client.put("/v1/profile", json=profile_v1(), headers=auth("c1")).status_code == 200
+    body = client.get("/v1/profile", headers=auth("c1")).json()
+    assert set(body.keys()) == {"profile", "updated_at"}
+    assert body["profile"]["currency"] == "USD"
+
+
+def test_contract_knowledge_query_shape_with_docs(client, auth):
+    _ingest(client, "Policy rates remain elevated. Inflation eased compared to last year.")
+    res = client.post("/v1/knowledge/query", json={"query": "How do rates affect my decisions?"}, headers=auth("c2"))
     assert res.status_code == 200
     body = res.json()
-
-    assert set(body.keys()) == {
-        "answer",
-        "recommendations",
-        "citations",
-        "mode",
-        "fallback_used",
-        "fallback_reason",
-    }
-    assert isinstance(body["answer"], str)
+    assert set(body.keys()) == {"answer", "citations", "corpus", "mode"}
     assert body["answer"].strip()
-
-    assert isinstance(body["recommendations"], list)
-    for rec in body["recommendations"]:
-        assert isinstance(rec, dict)
-
-    assert isinstance(body["citations"], list)
-    for c in body["citations"]:
-        assert isinstance(c, dict)
-        assert "doc_id" in c
-
+    assert body["corpus"] == "public"
+    assert all("doc_id" in c for c in body["citations"])
     # Retiré `confidence`: era una constante o un valor del modelo sin calibrar.
     assert "confidence" not in body
 
-    assert isinstance(body["mode"], str)
-    assert body["mode"] in ("offline", "llm")
 
-    assert isinstance(body["fallback_used"], bool)
-    assert body["fallback_reason"] is None or isinstance(body["fallback_reason"], str)
-
-
-def test_contract_query_response_shape_without_docs(test_client):
-    profile = _create_profile("c3")
-    res = test_client.put("/profiles/c3", json={"profile": profile})
-    assert res.status_code == 200
-
-    res = test_client.post("/query", json={"user_id": "c3", "query": "What should I do this month?"})
+def test_contract_knowledge_query_shape_without_docs(client, auth):
+    res = client.post("/v1/knowledge/query", json={"query": "What should I do this month?"}, headers=auth("c3"))
     assert res.status_code == 200
     body = res.json()
-
-    assert set(body.keys()) == {
-        "answer",
-        "recommendations",
-        "citations",
-        "mode",
-        "fallback_used",
-        "fallback_reason",
-    }
-    assert isinstance(body["answer"], str)
     assert body["answer"].strip()
-    assert isinstance(body["citations"], list)
-    assert isinstance(body["recommendations"], list)
-    # Retiré `confidence`: era una constante o un valor del modelo sin calibrar.
-    assert "confidence" not in body
-    assert isinstance(body["mode"], str)
-    assert body["mode"] in ("offline", "llm")
-    assert isinstance(body["fallback_used"], bool)
-    assert body["fallback_reason"] is None or isinstance(body["fallback_reason"], str)
+    assert body["citations"] == []
 
 
-def test_contract_recommendations_response_shape(test_client):
-    profile = _create_profile("c4")
-    res = test_client.put("/profiles/c4", json={"profile": profile})
-    assert res.status_code == 200
-
-    res = test_client.post("/recommendations", json={"user_id": "c4", "focus": "overview"})
-    assert res.status_code == 200
+def test_contract_plan_record_shape(client, auth):
+    h = auth("c4")
+    client.put("/v1/profile", json=profile_v1(), headers=h)
+    client.post("/v1/goals", json=goal_v1(), headers=h)
+    res = client.post("/v1/plans", json={"as_of": "2026-10-03"}, headers=h)
+    assert res.status_code == 201
     body = res.json()
-
-    assert {"metrics", "recommendations", "mode"}.issubset(set(body.keys()))
-    assert isinstance(body["metrics"], dict)
-    assert isinstance(body["recommendations"], list)
-    assert isinstance(body["mode"], str)
-    assert body["mode"] in ("offline", "llm")
-
-    for rec in body["recommendations"]:
-        assert isinstance(rec, dict)
-        assert {"title", "rationale", "actions", "risks", "sources"}.issubset(set(rec.keys()))
-        assert isinstance(rec["title"], str) and rec["title"].strip()
-        assert isinstance(rec["rationale"], str) and rec["rationale"].strip()
-        assert isinstance(rec["actions"], list) and all(isinstance(a, str) and a.strip() for a in rec["actions"])
-        assert isinstance(rec["risks"], list) and all(isinstance(r, str) for r in rec["risks"])
-        assert isinstance(rec["sources"], list)
-        for s in rec["sources"]:
-            assert isinstance(s, dict)
-            assert "doc_id" in s
+    assert set(body.keys()) == {"id", "as_of", "policy_version", "created_at", "plan"}
+    assert body["as_of"] == "2026-10-03"
+    assert {"budgets", "goals", "constraints", "assumptions", "missing_data", "scenarios"} <= set(body["plan"].keys())

@@ -2,41 +2,55 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from sqlalchemy import Engine
+
 from app.core.config import Settings
-from app.data.document_repo import DocumentRepository
-from app.data.decision_repo import DecisionRepository
-from app.data.profile_repo import ProfileRepository
-from app.data.sqlite import SqliteDb
-from app.llm.llm_factory import LlmBundle, build_llm
+from app.data.accounts import AuditRepository, GoalRepository, PlanRepository, ProfileRepository, UserRepository
+from app.data.documents import PublicCorpusRepository
+from app.data.privacy import PrivacyRepository
+from app.db.engine import build_engine, upgrade
 from app.opportunity_engine.repository import OpportunityRepository
 from app.rag.vector_store import VectorStoreBundle, build_vector_store
+from app.services.accounts import AccountService, KnowledgeService
 
 
 @dataclass(frozen=True)
 class AppContainer:
     settings: Settings
-    db: SqliteDb
-    profiles: ProfileRepository
-    documents: DocumentRepository
-    decisions: DecisionRepository
+    engine: Engine
+    users: UserRepository
+    corpus: PublicCorpusRepository
     vector: VectorStoreBundle
-    llm: LlmBundle
     opportunities: OpportunityRepository
+    accounts: AccountService
+    knowledge: KnowledgeService
+    privacy: PrivacyRepository
 
 
 def build_container(settings: Settings) -> AppContainer:
-    db = SqliteDb(path=settings.resolved_sqlite_path())
-    db.init_schema()
+    url = settings.resolved_database_url()
+    if settings.auto_migrate:
+        upgrade(url)
+    engine = build_engine(url)
     vector = build_vector_store(settings)
-    llm = build_llm(settings)
-    opportunities = OpportunityRepository()
+    corpus = PublicCorpusRepository(engine)
+    privacy = PrivacyRepository(engine, settings)
+    accounts = AccountService(
+        settings=settings,
+        profiles=ProfileRepository(engine),
+        goals=GoalRepository(engine),
+        plans=PlanRepository(engine),
+        audit=AuditRepository(engine),
+        privacy=privacy,
+    )
     return AppContainer(
         settings=settings,
-        db=db,
-        profiles=ProfileRepository(db=db),
-        documents=DocumentRepository(db=db),
-        decisions=DecisionRepository(db=db),
+        engine=engine,
+        users=UserRepository(engine),
+        corpus=corpus,
         vector=vector,
-        llm=llm,
-        opportunities=opportunities,
+        opportunities=OpportunityRepository(),
+        accounts=accounts,
+        knowledge=KnowledgeService(settings=settings, corpus=corpus, vector=vector),
+        privacy=privacy,
     )

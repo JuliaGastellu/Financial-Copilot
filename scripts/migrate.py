@@ -1,11 +1,9 @@
-"""Aplico el esquema actual a la base SQLite configurada.
+"""Aplico o revierto migraciones versionadas de Alembic sobre DATABASE_URL.
 
-Uso este comando:
-    python scripts/migrate.py [--db-path PATH]
-
-Uso CREATE TABLE/INDEX IF NOT EXISTS para poder repetir la aplicación del esquema.
-Para futuros cambios de columnas necesito migraciones explícitas y versionadas;
-este script solo aplica el esquema base actual.
+Uso:
+    python scripts/migrate.py upgrade [--revision head]
+    python scripts/migrate.py downgrade --revision <rev|base>
+    python scripts/migrate.py current
 """
 from __future__ import annotations
 
@@ -16,23 +14,25 @@ from pathlib import Path
 # Permito ejecutar desde la raíz del proyecto sin instalar el paquete.
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from app.core.config import settings
-from app.data.sqlite import SqliteDb
-
-
-def migrate(db_path: Path) -> None:
-    db = SqliteDb(path=db_path)
-    db.init_schema()
-    print(f"Schema applied to: {db_path}")
+from app.core.config import Settings
+from app.db.engine import build_engine, current_revision, downgrade, head_revision, upgrade
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Aplico el esquema base de la base de datos.")
-    parser.add_argument("--db-path", type=Path, default=None, help="Indico la ruta al archivo SQLite.")
+    parser = argparse.ArgumentParser(description="Aplico migraciones de la base de datos.")
+    parser.add_argument("action", choices=["upgrade", "downgrade", "current"])
+    parser.add_argument("--revision", default=None)
     args = parser.parse_args()
-
-    db_path = args.db_path or settings.resolved_sqlite_path()
-    migrate(db_path)
+    url = Settings().resolved_database_url()
+    if args.action == "upgrade":
+        upgrade(url, args.revision or "head")
+    elif args.action == "downgrade":
+        if not args.revision:
+            parser.error("downgrade requires --revision")
+        downgrade(url, args.revision)
+    engine = build_engine(url)
+    print(f"current={current_revision(engine)} head={head_revision(url)}")
+    engine.dispose()
 
 
 if __name__ == "__main__":

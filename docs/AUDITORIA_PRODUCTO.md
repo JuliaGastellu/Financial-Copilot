@@ -98,3 +98,33 @@ Implementé `app/finance/` y conecté métricas, restricciones, recomendaciones 
 Al probar encontré y corregí dos errores: un 422 con NaN terminaba en 500 al serializar el valor recibido, y el aporte requerido de una división exacta podía quedar un centavo arriba. También corregí el guardado de perfiles con `target_date`, que fallaba al serializar fechas.
 
 Sigue pendiente lo demás: autenticación, aislamiento, persistencia durable, carga en la UI de los campos nuevos y revisión de la política por defecto con personas usuarias. La reserva de 3 meses y el umbral de 12% son políticas propias, no recomendaciones validadas.
+
+## Estado tras la etapa de identidad, PostgreSQL y privacidad
+
+En esta etapa resuelvo los hallazgos P0 de acceso y documentos y parte de los P1 de configuración y datos. No publiqué el servicio.
+
+- **Acceso por identificador del cliente.** Retiré todas las rutas que tomaban `user_id` de la URL o del cuerpo, y la interfaz que dependía de ellas. Las rutas `/v1` exigen un token OIDC verificado (firma por JWKS, emisor, audiencia, expiración, edad máxima y rotación de claves) y derivan la cuenta de (`iss`, `sub`). Una prueba recorre todas las rutas registradas y exige 401 sin token en cada una que no sea pública.
+- **Acceso cruzado.** Probé que la persona B no lee, modifica, borra, lista ni exporta perfil, metas o planes de A, que identificadores en cuerpo, encabezados o parámetros no cambian la cuenta, y que borrar la cuenta de B no afecta a A. No encontré accesos cruzados en la matriz, en SQLite ni en PostgreSQL 16.
+- **Tokens.** Rechazo tokens ausentes, con otro esquema, expirados, demasiado antiguos, con `nbf` futuro, con otro emisor o audiencia, sin `sub`, `exp` o `kid`, con firma de otra clave, con payload manipulado, con `none` o con HS256 firmado usando la clave pública.
+- **Documentos sin propietario.** Dejé los documentos privados fuera de la etapa: no hay ingesta por HTTP, la base solo admite `corpus = 'public'` y la recuperación filtra dentro de la consulta vectorial y de la SQL.
+- **Persistencia.** Migré a SQLAlchemy con Alembic. La migración `0001` coincide con el esquema en SQLite y PostgreSQL, se revierte y se vuelve a aplicar, y sus restricciones rechazan filas inválidas. Al probar Compose encontré dos fallas de arranque con dos workers: migraciones simultáneas (lo corregí con un advisory lock y una prueba con cuatro migraciones en paralelo) y bloqueo del índice Chroma local (dejé un solo worker).
+- **Exportación y borrado.** `GET /v1/me/export` entrega todos los datos propios. `DELETE /v1/me` borra en una transacción, verifica cero filas restantes y devuelve un recibo con evidencia por almacén. Verifiqué el restore de un backup y la reaplicación de borrados con `VACUUM INTO` en SQLite y con `pg_dump`/`pg_restore` reales en PostgreSQL.
+- **Configuración.** Producción se niega a arrancar sin PostgreSQL, con OIDC sin https, con algoritmos simétricos, sin clave de seudonimización, con CORS no explícito, sin rate limiting o con migraciones automáticas. CORS ya no habilita credenciales.
+
+Resultados del 3 de octubre de 2026, con instalación limpia de `requirements-dev.lock` en Python 3.11:
+
+- SQLite: 258 pruebas aprobadas y 2 omitidas, ambas exclusivas de PostgreSQL.
+- PostgreSQL 16: 259 aprobadas y 1 omitida, el restore de SQLite.
+
+Además construí la imagen y levanté Compose con PostgreSQL tres veces desde cero sin errores en los logs. Probé el flujo de identidad local con un servidor real. No ejecuté la integración continua en GitHub.
+
+Sigue pendiente:
+
+- elegir proveedor de identidad y probar contra su JWKS real;
+- políticas de fila en PostgreSQL;
+- rate limiting compartido entre procesos;
+- logs centralizados con retención;
+- frecuencia y almacenamiento de backups, con ensayo de RPO y RTO;
+- tratamiento de cuentas inactivas;
+- revisión profesional del tratamiento de datos;
+- la nueva interfaz.

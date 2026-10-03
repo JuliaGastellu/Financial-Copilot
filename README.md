@@ -1,69 +1,98 @@
 # Financial Copilot
 
-Estoy desarrollando una herramienta para organizar ingresos, gastos, deudas y metas, consultar documentación financiera y explicar escenarios de ahorro. Hoy mantengo un prototipo local; todavía no lo considero apto para recibir datos personales de terceros en un servicio público.
+Estoy desarrollando una herramienta para organizar ingresos, gastos, deudas y metas, consultar material financiero educativo y comparar escenarios de ahorro. Hoy mantengo una API en desarrollo. Todavía no la publiqué ni la conecté a un proveedor de identidad real.
 
 ## Qué implementé
 
-Implementé una API FastAPI, perfiles e historial en SQLite, ingesta de texto y HTML, recuperación documental con Chroma, reglas financieras, comparación de un catálogo ilustrativo y una interfaz web. Mantengo pruebas automatizadas y un flujo de integración continua.
+- **Cuentas con identidad gestionada.** Las rutas `/v1` exigen un token de acceso OIDC (JWT). Verifico firma por JWKS, emisor, audiencia, expiración y rotación de claves. La cuenta sale del token; la URL y el cuerpo no aceptan identificadores de persona. Retiré las rutas anteriores que tomaban un `user_id` del cliente.
+- **Perfil, metas y planes v1.** Los importes son Decimal con moneda explícita. Los planes se calculan con el núcleo de `app/finance/`, que mantiene un presupuesto por moneda y reparte el saldo actual y el excedente mensual una sola vez: reserva, deuda de tasa alta y metas. Cada plan guarda sus entradas y la versión de la política.
+- **Persistencia en PostgreSQL** con SQLAlchemy y migraciones versionadas de Alembic (`migrations/`), con restricciones e índices. Para desarrollo y pruebas también acepto SQLite; producción exige PostgreSQL.
+- **Privacidad.** Exportación (`GET /v1/me/export`), borrado con recibo de evidencia (`DELETE /v1/me`), retención, auditoría sin contenido financiero y reaplicación de borrados tras restaurar un backup.
+- **Corpus público curado** para preguntas educativas (`POST /v1/knowledge/query`). Los documentos privados quedan fuera de esta etapa: no hay ingesta por HTTP y la base solo admite el corpus público.
+- **Entorno de producción** que se niega a arrancar con configuración insegura, y CORS con orígenes explícitos.
 
-Puedo ejecutar el prototipo sin clave de proveedor: uso representaciones de texto basadas en hash y respuestas extractivas.
+Los contratos y las rutas retiradas están en [la migración de contratos](docs/MIGRACION_CONTRATOS.md). El contrato de identidad, los almacenes, la retención y los backups están en [identidad y privacidad](docs/IDENTIDAD_Y_PRIVACIDAD.md).
 
-Implementé un núcleo financiero puro en `app/finance/`. Uso importes Decimal con moneda explícita y mantengo un presupuesto separado por moneda. Solo consolido monedas con una tasa que tenga fecha y fuente. El plan separa el saldo actual del excedente mensual y reparte cada uno una sola vez: primero la reserva de emergencia, después la deuda de tasa alta y por último las metas, por prioridad y plazo. Con la misma fecha y la misma política, el plan es reproducible. Expongo el plan en `GET /plans/{user_id}` con supuestos, datos faltantes y tres escenarios de ingreso y gasto. Los cambios de contrato están en [la migración de contratos](docs/MIGRACION_CONTRATOS.md).
-
-Cuando habilito el modelo de lenguaje, puede agregar recomendaciones de texto, pero no importes ni acciones del plan. Por eso no presento todas las respuestas como determinísticas.
+El motor de recomendaciones y el catálogo ilustrativo siguen como módulos internos con pruebas, sin ruta pública. Cuando habilito el modelo de lenguaje en ese motor, puede agregar texto, pero no importes ni acciones del plan.
 
 ## Límites actuales
 
-Todavía no implementé autenticación ni autorización por propietario. Los documentos comparten un índice global. El plan usa reglas y supuestos explícitos; no es un pronóstico y no calcula probabilidades. La interfaz todavía no permite cargar monedas por importe, compromisos ni meses de reserva, aunque la API los acepta. El catálogo es ilustrativo y no representa cotizaciones vigentes. No uso este prototipo para ejecutar operaciones ni ofrecer asesoramiento profesional.
+- La interfaz web anterior dependía de las rutas retiradas. Ya no la sirvo; en `/` muestro un aviso hasta la etapa de experiencia.
+- No elegí proveedor de identidad ni probé contra su JWKS real.
+- No agregué políticas de fila de PostgreSQL. El aislamiento depende de los repositorios y de la matriz de pruebas.
+- El rate limiting se guarda en memoria del proceso.
+- El índice Chroma es local y no admite varios procesos, así que la imagen corre un solo worker.
+- `vercel.json` corresponde al despliegue anterior y no lo actualicé.
+- El plan usa reglas y supuestos explícitos; no es un pronóstico ni asesoramiento profesional. El catálogo es ilustrativo.
 
 ## Ejecución local
 
-Uso Python 3.11 como referencia del flujo de integración continua.
+Uso Python 3.11 como referencia de la integración continua.
 
 ```bash
 python -m venv .venv
-```
-
-En Windows activo el entorno con `.venv\Scripts\Activate.ps1`; en Linux o macOS uso `source .venv/bin/activate`.
-
-```bash
 python -m pip install -r requirements-dev.lock
+cp .env.example .env
+python scripts/dev_identity.py init
 python -m uvicorn app.main:app --host 127.0.0.1 --port 8000
 ```
 
-Separé las dependencias en cuatro archivos. `requirements.txt` fija las dependencias directas de ejecución y `requirements-dev.txt` agrega `pytest` y `httpx`. Generé `requirements.lock` y `requirements-dev.lock` con `uv pip compile --universal` para Python 3.11, acotando las transitivas con las versiones de un entorno donde la suite pasó. La imagen Docker instala `requirements.lock` y el flujo de integración continua instala `requirements-dev.lock`.
+En Windows activo el entorno con `.venv\Scripts\Activate.ps1`. Para obtener un token local uso `python scripts/dev_identity.py token --subject demo-person` y lo envío como `Authorization: Bearer <token>`. Las claves locales quedan en `data/dev_identity/`, que no se versiona. Producción las rechaza.
 
-Abro la interfaz en `http://127.0.0.1:8000/` y los contratos en `http://127.0.0.1:8000/docs`. También puedo usar `docker compose up --build` para desarrollo local.
+Sin `DATABASE_URL`, uso SQLite en `DATA_DIR/app.db` y aplico migraciones al arrancar. Con Compose levanto PostgreSQL y la API; antes defino `POSTGRES_PASSWORD` en `.env`:
+
+```bash
+docker compose up --build
+```
+
+Scripts operativos:
+
+| Script | Uso |
+|---|---|
+| `scripts/migrate.py upgrade|downgrade|current` | Aplico o revierto migraciones. |
+| `scripts/ingest_public_corpus.py` | Cargo material público curado. |
+| `scripts/import_local_demo.py` | Importo un perfil ficticio del SQLite anterior, con confirmación explícita. |
+| `scripts/privacy_maintenance.py` | Aplico retención, exporto recibos y reaplico borrados tras un restore. |
+| `scripts/dev_identity.py` | Genero claves y tokens locales. |
 
 ## Configuración
 
-Uso el entorno o un `.env` local que no publico. Parto de `.env.example`, que no contiene claves y usa los mismos nombres que `Settings` en `app/core/config.py`.
+Parto de `.env.example`, que no contiene claves.
 
-| Variable | Uso que le doy |
+| Variable | Uso |
 |---|---|
-| `OFFLINE_MODE=true` | Fuerzo la ejecución sin llamadas al proveedor. |
-| `OPENAI_API_KEY` | Habilito las integraciones existentes de embeddings y generación. |
-| `OPENAI_MODEL` | Selecciono el modelo de generación. |
-| `DATA_DIR` | Defino el directorio persistente. |
-| `SQLITE_PATH` | Defino la ubicación de SQLite. |
-| `CHROMA_DIR` | Defino la ubicación del índice vectorial. |
-| `ALLOWED_ORIGINS` | Configuro una lista JSON de orígenes permitidos. |
+| `ENVIRONMENT` | `local`, `test` o `production`. |
+| `DATABASE_URL` | URL de SQLAlchemy; en producción, `postgresql+psycopg://...`. |
+| `AUTO_MIGRATE` | Aplico migraciones al arrancar; en producción debe ser `false`. |
+| `OIDC_ISSUER`, `OIDC_AUDIENCE`, `OIDC_JWKS_URL` | Configuro el proveedor de identidad. |
+| `OIDC_ALGORITHMS` | Algoritmos asimétricos permitidos; por defecto `["RS256"]`. |
+| `PRIVACY_HASH_KEY` | Clave para seudonimizar recibos de borrado; obligatoria en producción. |
+| `PLAN_RETENTION_DAYS`, `AUDIT_RETENTION_DAYS`, `BACKUP_RETENTION_DAYS` | Defino los plazos de retención. |
+| `ALLOWED_ORIGINS` | Lista JSON de orígenes; en producción, https explícitos. |
+| `DATA_DIR`, `CHROMA_DIR` | Defino los directorios locales del índice y de SQLite. |
+| `OFFLINE_MODE`, `OPENAI_API_KEY`, `OPENAI_MODEL` | Controlo las integraciones con el proveedor de modelos. |
 
-Corregí Compose para que use `DATA_DIR`, `SQLITE_PATH` y `CHROMA_DIR`; antes definía variables que `Settings` no leía. La base sigue en `/app/data/app.db` dentro del volumen. En el despliegue serverless actual `/tmp/data` es temporal; no lo trato como almacenamiento durable.
+Separé las dependencias en `requirements.txt` (directas de ejecución), `requirements-dev.txt` (más `pytest`) y dos archivos de bloqueo generados con `uv pip compile --universal` para Python 3.11. La imagen Docker instala `requirements.lock` y la integración continua instala `requirements-dev.lock`.
 
 ## Datos generados
 
-No versiono `data/app.db` ni `data/chroma/`: los genera la aplicación al ejecutarse y pueden contener información cargada. Retiré del árbol actual los cuatro archivos de índice de `data/chroma/` que había versionado; las copias locales siguen en disco. Esos archivos permanecen en el historial de Git, que no reescribí.
+No versiono `data/app.db`, `data/chroma/` ni `data/dev_identity/`. Retiré del árbol los archivos de índice de `data/chroma/` que había versionado antes; siguen en el historial de Git, que no reescribí.
 
 ## Organización
 
-Mantengo API en `app/main.py`, casos de uso en `app/services/`, contratos en `app/schemas/`, repositorios en `app/data/`, cálculo en `app/reasoning/`, catálogo en `app/opportunity_engine/`, recuperación en `app/rag/` e interfaz en `public/`.
+- API: `app/main.py` y `app/api/v1.py`.
+- Identidad: `app/auth/`.
+- Casos de uso: `app/services/`.
+- Contratos: `app/schemas/`.
+- Repositorios: `app/data/`.
+- Esquema y migraciones: `app/db/` y `migrations/`.
+- Dominio financiero: `app/finance/`.
+- Motor de recomendaciones: `app/reasoning/` y `app/opportunity_engine/`.
+- Recuperación: `app/rag/`.
 
 ## Verificación
 
-Ejecuto la suite con `python -m pytest -q`. El 3 de octubre de 2026 instalé `requirements-dev.lock` en un entorno limpio de Python 3.11 en Windows y obtuve 46 pruebas aprobadas; después de implementar el núcleo financiero, la misma suite tiene 188 pruebas aprobadas. También verifiqué en el navegador, con un perfil ficticio, que la interfaz muestra el plan conjunto sin probabilidades. El 3 de octubre también construí la imagen Docker sin errores. Levanté un contenedor en modo offline con las variables de Compose: `/health` respondió 200, el chequeo de salud quedó en `healthy`, la aplicación creó SQLite y Chroma en `/app/data` y la imagen no incluía datos locales. No ejecuté la suite dentro del contenedor.
-
-Las pruebas de fragmentación ejecutan cada caso en un proceso aislado con tiempo máximo, para detectar bucles en el divisor alternativo.
+Ejecuto `python -m pytest -q`. Con `TEST_DATABASE_URL` apuntando a PostgreSQL, la misma suite corre contra esa base. Con `PG_DOCKER_CONTAINER`, además verifica un backup y un restore reales con `pg_dump`/`pg_restore`. Los resultados de cada etapa están en [la auditoría](docs/AUDITORIA_PRODUCTO.md).
 
 ## Evolución
 

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from tests.engine_helpers import recommend
+
 from app.reasoning.constraints import detect_constraints
 from app.reasoning.metrics import compute_profile_metrics
 
@@ -43,7 +45,7 @@ def test_compute_profile_metrics_includes_debt_ratios():
     assert metrics["metric_units"]["debt_service_ratio"] == "minimum_payments / monthly_income"
 
 
-def test_recommendations_include_decision_context_and_projected_impacts(test_client):
+def test_recommendations_include_decision_context_and_projected_impacts():
     profile = {
         "user_id": "impact-user",
         "country": "US",
@@ -54,12 +56,8 @@ def test_recommendations_include_decision_context_and_projected_impacts(test_cli
         "goals": [{"name": "Down payment", "target_amount": 20000, "horizon_months": 18, "priority": "high"}],
         "preferences": {"currency": "USD"},
     }
-    res = test_client.put("/profiles/impact-user", json={"profile": profile})
-    assert res.status_code == 200
-
-    res = test_client.post("/recommendations", json={"user_id": "impact-user", "focus": "overview"})
-    assert res.status_code == 200
-    body = res.json()
+    # Antes llamaba a /recommendations; retiré la ruta y pruebo el mismo flujo del motor.
+    body = recommend(profile)
 
     assert "decision_context" in body
     assert isinstance(body["decision_context"], dict)

@@ -37,6 +37,7 @@ htmlcov/
 
 # ── Data generada (no el corpus fuente) ───────────────────────────────────────
 data/chroma/
+data/dev_identity/
 data/chroma_db/
 data/golden_dataset/
 logs/

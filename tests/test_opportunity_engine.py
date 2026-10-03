@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from tests.engine_helpers import recommend
+
 from app.opportunity_engine.evaluation import evaluate_opportunities
 from app.opportunity_engine.repository import OpportunityRepository
 
@@ -42,7 +44,7 @@ def test_opportunity_scoring_prefers_eligible_matches():
     assert matches == sorted(matches, key=lambda m: m.score, reverse=True)
 
 
-def test_recommendations_endpoint_includes_opportunity_fields_when_available(test_client):
+def test_recommendations_endpoint_includes_opportunity_fields_when_available():
     profile = {
         "user_id": "opp-user",
         "country": "US",
@@ -53,12 +55,8 @@ def test_recommendations_endpoint_includes_opportunity_fields_when_available(tes
         "goals": [{"name": "Home down payment", "target_amount": 20000, "horizon_months": 18, "priority": "high"}],
         "preferences": {"currency": "USD"},
     }
-    res = test_client.put("/profiles/opp-user", json={"profile": profile})
-    assert res.status_code == 200
-
-    res = test_client.post("/recommendations", json={"user_id": "opp-user", "focus": "overview"})
-    assert res.status_code == 200
-    body = res.json()
+    # Antes llamaba a /recommendations; retiré la ruta y pruebo el mismo flujo del motor.
+    body = recommend(profile)
     assert isinstance(body["recommendations"], list)
 
     opportunity_recs = [r for r in body["recommendations"] if r.get("opportunity") is not None]

@@ -1,9 +1,16 @@
+"""Retiré /query porque mezclaba el perfil de un user_id del cliente con la consulta.
+Mantengo las pruebas del motor de consulta a nivel de función."""
 from __future__ import annotations
 
+from datetime import date
 
-def _create_profile(user_id: str) -> dict:
+from app.finance import plan_for_profile
+from app.reasoning.engine import generate_query_result
+
+
+def _profile() -> dict:
     return {
-        "user_id": user_id,
+        "user_id": "q",
         "country": "US",
         "risk_tolerance": "medium",
         "cashflow": {"monthly_income": 5000, "monthly_expenses": 3800},
@@ -14,53 +21,27 @@ def _create_profile(user_id: str) -> dict:
     }
 
 
-def test_query_default_includes_recommendations_and_has_fallback_fields(test_client):
-    res = test_client.put("/profiles/q1", json={"profile": _create_profile("q1")})
-    assert res.status_code == 200
-
-    res = test_client.post("/query", json={"user_id": "q1", "query": "What should I do this month?"})
-    assert res.status_code == 200
-    body = res.json()
-
-    assert isinstance(body["recommendations"], list)
-    assert len(body["recommendations"]) > 0
-    assert "fallback_used" in body
-    assert "fallback_reason" in body
-    assert isinstance(body["fallback_used"], bool)
-    assert body["fallback_reason"] is None or isinstance(body["fallback_reason"], str)
-
-
-def test_query_can_suppress_recommendations(test_client):
-    res = test_client.put("/profiles/q2", json={"profile": _create_profile("q2")})
-    assert res.status_code == 200
-
-    res = test_client.post(
-        "/context/ingest",
-        json={
-            "title": "Macro",
-            "source": "flag-test",
-            "content": "Policy rates remain elevated. Inflation eased compared to last year.",
-        },
+def test_query_default_includes_recommendations_and_has_fallback_fields():
+    profile = _profile()
+    result = generate_query_result(
+        llm=None, profile=profile, plan=plan_for_profile(profile, date(2026, 10, 3)), query="What should I do this month?", context="", citations=[]
     )
-    assert res.status_code == 200
+    assert len(result.recommendations) > 0
+    assert isinstance(result.fallback_used, bool)
+    assert result.fallback_reason == "no_context"
 
-    res = test_client.post(
-        "/query",
-        json={
-            "user_id": "q2",
-            "query": "How do rates affect my decisions?",
-            "include_recommendations": False,
-        },
+
+def test_query_can_suppress_recommendations():
+    profile = _profile()
+    result = generate_query_result(
+        llm=None,
+        profile=profile,
+        plan=plan_for_profile(profile, date(2026, 10, 3)),
+        query="How do rates affect my decisions?",
+        context="Policy rates remain elevated. Inflation eased compared to last year.",
+        citations=[],
+        include_recommendations=False,
     )
-    assert res.status_code == 200
-    body = res.json()
-
-    assert isinstance(body["answer"], str) and body["answer"].strip()
-    assert isinstance(body["citations"], list)
-    assert "confidence" not in body
-    assert isinstance(body["mode"], str)
-    assert isinstance(body["fallback_used"], bool)
-    assert body["fallback_reason"] is None or isinstance(body["fallback_reason"], str)
-
-    assert body["recommendations"] == []
-
+    assert result.answer.strip()
+    assert result.recommendations == []
+    assert not hasattr(result, "confidence")

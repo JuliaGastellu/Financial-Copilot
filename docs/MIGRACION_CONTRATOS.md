@@ -1,10 +1,31 @@
-# Migración de contratos: núcleo financiero
+# Migración de contratos
 
-Describo los cambios de contrato que introduje al reemplazar las estimaciones anteriores por el dominio de `app/finance/`. No necesité migrar el esquema SQL: perfiles y decisiones se guardan como JSON y los campos nuevos son opcionales.
+## Contratos v1 con identidad (etapa de cuentas)
 
-## Perfiles (`PUT /profiles/{user_id}`)
+Retiré todas las rutas anteriores que tomaban la identidad de la URL o del cuerpo: `PUT/GET /profiles/{user_id}`, `POST /query`, `POST /recommendations`, `POST /context/ingest`, `GET /plans/{user_id}`, `GET /opportunities/match/{user_id}` y `GET /decisions/{user_id}`. También dejé de servir la interfaz anterior (`/static`, `/app.js`, `/styles.css`), que dependía de esas rutas. Ahora responden 404. Solo quedan públicas `/health`, `/ready`, `/opportunities` (catálogo ilustrativo) y una página de aviso en `/`.
 
-Mantengo compatibilidad con los perfiles existentes. Todos los campos nuevos son opcionales:
+Las rutas nuevas exigen `Authorization: Bearer <token>`:
+
+| Ruta | Uso |
+|---|---|
+| `GET /v1/me`, `DELETE /v1/me` | Consultar o borrar la cuenta; el borrado devuelve un recibo con evidencia. |
+| `GET /v1/me/export` | Exportar todos los datos propios en JSON. |
+| `GET/PUT /v1/profile` | Perfil con importes `{amount, currency}` y un flujo por moneda. |
+| `GET/POST /v1/goals`, `GET/PUT/DELETE /v1/goals/{id}` | Metas; como máximo `MAX_GOALS_PER_USER` por cuenta. |
+| `POST/GET /v1/plans`, `GET/DELETE /v1/plans/{id}` | Calcular y guardar planes con sus entradas; listar como máximo 50. |
+| `POST /v1/knowledge/query` | Preguntas sobre el corpus público; no usa el perfil. |
+
+Los cuerpos rechazan campos desconocidos. La consulta de conocimiento ya no devuelve `recommendations` ni usa el perfil. El motor de recomendaciones y el catálogo siguen como módulos internos probados, sin ruta pública.
+
+Los perfiles del SQLite anterior no se migran automáticamente. `scripts/import_local_demo.py` importa un perfil ficticio nombrado de forma explícita, solo con la confirmación `--i-confirm-fictitious-data` y `--apply`. No importa decisiones ni documentos.
+
+## Núcleo financiero (etapa anterior)
+
+Describí los cambios de contrato que introduje al reemplazar las estimaciones anteriores por el dominio de `app/finance/`. No necesité migrar el esquema SQL: perfiles y decisiones se guardan como JSON y los campos nuevos son opcionales.
+
+### Perfiles (`PUT /profiles/{user_id}`, retirada después)
+
+En esa etapa mantuve compatibilidad con los perfiles existentes; todos los campos nuevos eran opcionales:
 
 | Campo | Uso |
 |---|---|
@@ -18,11 +39,11 @@ Mantengo compatibilidad con los perfiles existentes. Todos los campos nuevos son
 
 Validaciones nuevas: rechazo NaN e infinitos con 422 y valido códigos de moneda de tres letras. El 422 ya no devuelve el valor recibido. Ahora guardo `target_date` en formato ISO; antes el guardado fallaba al serializar fechas.
 
-## Plan (`GET /plans/{user_id}`, nuevo)
+### Plan (`GET /plans/{user_id}`, retirada después)
 
 Devuelvo el plan completo: presupuesto por moneda, asignaciones, metas, restricciones con su efecto, supuestos, datos faltantes y tres escenarios determinísticos. Expreso cada importe como `{"amount": "<decimal>", "currency": "<ISO>"}`. El endpoint tiene límite de solicitudes (`RATE_LIMIT_PLANS`, por defecto `20/minute`).
 
-## Recomendaciones (`POST /recommendations`)
+### Recomendaciones (`POST /recommendations`, retirada después)
 
 | Antes | Ahora |
 |---|---|
@@ -36,7 +57,7 @@ Devuelvo el plan completo: presupuesto por moneda, asignaciones, metas, restricc
 
 Cuando habilito el modelo de lenguaje, solo acepto `title`, `rationale`, `actions` y `risks` de su respuesta. Las acciones con importe siempre salen del plan.
 
-## Métricas (`metrics`)
+### Métricas (`metrics`)
 
 Siguen siendo números para no romper clientes, ahora calculados desde el plan en la moneda base:
 
@@ -46,18 +67,18 @@ Siguen siendo números para no romper clientes, ahora calculados desde el plan e
 - `emergency_fund_months` usa liquidez alta no reservada ni ahorrada para metas, dividida por las salidas mensuales.
 - Agrego `currency`, `monthly_outflow`, `debt_to_assets_ratio` y `metric_units`.
 
-## Restricciones
+### Restricciones
 
 Cada restricción incluye `currency`, `effect` y `blocks_new_investment`. Quité `high_debt_to_income_ratio`. Agregué `zero_income`, `commitments_exceed_liquid_balance`, `goal_shortfall` y `goal_currency_without_income`. Mantengo el identificador `insufficient_emergency_fund`.
 
-## Consultas (`POST /query`)
+### Consultas (`POST /query`, retirada después)
 
 Eliminé `confidence`: era una constante (0,35, 0,15, 0,3 o 0,12) o un valor propuesto por el modelo, sin calibración.
 
-## Decisiones guardadas (`GET /decisions/{user_id}`)
+### Decisiones guardadas (`GET /decisions/{user_id}`, retirada después)
 
-No reescribo registros anteriores. Al leerlos quito `probability_of_success` y `confidence` en cualquier nivel y agrego `decision_context.legacy_indicators_removed`. Esos registros conservan el resto de su contenido, incluido el capital calculado con la regla anterior.
+En esa etapa limpiaba al leer `probability_of_success` y `confidence` de registros anteriores. Al retirar la ruta y la tabla `decisions`, eliminé también esa capa de compatibilidad.
 
-## Catálogo de oportunidades
+### Catálogo de oportunidades
 
 Uso el mismo capital disponible que el plan. Rechazo instrumentos cuando hay una restricción bloqueante en su moneda (`blocked_by_constraint:<id>`) o cuando el plan no tiene presupuesto en esa moneda. Los pesos de puntaje no cambiaron.

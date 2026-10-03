@@ -158,3 +158,63 @@ def snapshot_from_profile(profile: dict[str, Any], as_of: date) -> FinancialSnap
         assumptions=tuple(assumptions),
         missing_data=tuple(missing),
     )
+
+
+def planning_profile_from_v1(profile: dict[str, Any], goals: list[dict[str, Any]]) -> dict[str, Any]:
+    """Traduzco el contrato v1 (importes con moneda) al formato que consume `snapshot_from_profile`."""
+    base = normalize_currency(profile["currency"])
+    cashflows = list(profile.get("cashflows") or [])
+    main = next((c for c in cashflows if normalize_currency(c["currency"]) == base), cashflows[0] if cashflows else None)
+
+    def flow(c: dict[str, Any]) -> dict[str, Any]:
+        return {
+            "currency": c["currency"],
+            "monthly_income": str(c["monthly_income"]),
+            "monthly_expenses": str(c["monthly_expenses"]),
+            "minimum_payments_included_in_expenses": c.get("minimum_payments_included_in_expenses"),
+        }
+
+    return {
+        "currency": base,
+        "country": profile.get("country"),
+        "risk_tolerance": profile.get("risk_tolerance") or "medium",
+        "cashflow": flow(main) if main else {"monthly_income": "0", "monthly_expenses": "0", "currency": base},
+        "additional_cashflows": [flow(c) for c in cashflows if c is not main],
+        "assets": [
+            {
+                "name": a["name"],
+                "category": a.get("category") or "other",
+                "liquidity": a["liquidity"],
+                "value": str(a["value"]["amount"]),
+                "currency": a["value"]["currency"],
+            }
+            for a in profile.get("assets") or []
+        ],
+        "liabilities": [
+            {
+                "name": item["name"],
+                "balance": str(item["balance"]["amount"]),
+                "currency": item["balance"]["currency"],
+                "apr": str(item["apr_percent"]) if item.get("apr_percent") is not None else None,
+                "minimum_payment": str(item["minimum_payment"]["amount"]) if item.get("minimum_payment") else None,
+            }
+            for item in profile.get("liabilities") or []
+        ],
+        "commitments": [
+            {"name": c["name"], "kind": c["kind"], "amount": str(c["amount"]["amount"]), "currency": c["amount"]["currency"]}
+            for c in profile.get("commitments") or []
+        ],
+        "emergency_reserve_months": str(profile["emergency_reserve_months"]) if profile.get("emergency_reserve_months") is not None else None,
+        "goals": [
+            {
+                "name": g["name"],
+                "currency": g["currency"],
+                "target_amount": str(g["target_amount"]),
+                "current_amount": str(g["saved_amount"]),
+                "priority": g["priority"],
+                "target_date": g["target_date"].isoformat() if hasattr(g.get("target_date"), "isoformat") else g.get("target_date"),
+                "horizon_months": g.get("horizon_months"),
+            }
+            for g in goals
+        ],
+    }
