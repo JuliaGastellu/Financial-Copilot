@@ -3,18 +3,6 @@ from __future__ import annotations
 from typing import Any
 
 
-def clamp_confidence(value: Any) -> float:
-    try:
-        x = float(value)
-    except Exception:
-        return 0.5
-    if x < 0:
-        return 0.0
-    if x > 1:
-        return 1.0
-    return x
-
-
 def validate_citations(citations: list[dict[str, Any]]) -> list[dict[str, Any]]:
     clean: list[dict[str, Any]] = []
     for c in citations:

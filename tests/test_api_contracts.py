@@ -50,7 +50,6 @@ def test_contract_query_response_shape_with_docs(test_client):
         "answer",
         "recommendations",
         "citations",
-        "confidence",
         "mode",
         "fallback_used",
         "fallback_reason",
@@ -67,8 +66,8 @@ def test_contract_query_response_shape_with_docs(test_client):
         assert isinstance(c, dict)
         assert "doc_id" in c
 
-    assert isinstance(body["confidence"], (int, float))
-    assert 0.0 <= float(body["confidence"]) <= 1.0
+    # Retiré `confidence`: era una constante o un valor del modelo sin calibrar.
+    assert "confidence" not in body
 
     assert isinstance(body["mode"], str)
     assert body["mode"] in ("offline", "llm")
@@ -90,7 +89,6 @@ def test_contract_query_response_shape_without_docs(test_client):
         "answer",
         "recommendations",
         "citations",
-        "confidence",
         "mode",
         "fallback_used",
         "fallback_reason",
@@ -99,8 +97,8 @@ def test_contract_query_response_shape_without_docs(test_client):
     assert body["answer"].strip()
     assert isinstance(body["citations"], list)
     assert isinstance(body["recommendations"], list)
-    assert isinstance(body["confidence"], (int, float))
-    assert 0.0 <= float(body["confidence"]) <= 1.0
+    # Retiré `confidence`: era una constante o un valor del modelo sin calibrar.
+    assert "confidence" not in body
     assert isinstance(body["mode"], str)
     assert body["mode"] in ("offline", "llm")
     assert isinstance(body["fallback_used"], bool)

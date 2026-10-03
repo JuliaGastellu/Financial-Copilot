@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from datetime import date
 from typing import Any, Literal
 
 from app.opportunity_engine.decision_trace import DecisionTrace, OpportunityRejection, OpportunitySummary, ScoringBreakdown
+from app.finance import plan_for_profile
+from app.finance.planning import FinancialPlan, available_capital as plan_available_capital
+from app.finance.serialization import constraint_to_dict, plan_metrics
 from app.opportunity_engine.models import InvestmentOpportunity
-from app.reasoning.metrics import compute_profile_metrics
-from app.reasoning.constraints import detect_constraints
 
 
 RiskLevel = Literal["low", "medium", "high"]
@@ -22,17 +24,8 @@ def _liquidity_order(level: LiquidityLevel) -> int:
     return {"high": 0, "medium": 1, "low": 2}[level]
 
 
-def _estimate_available_capital(profile: dict[str, Any], metrics: dict[str, Any]) -> float:
-    assets = profile.get("assets") or []
-    liquid = 0.0
-    for a in assets:
-        if not isinstance(a, dict):
-            continue
-        if a.get("liquidity") in ("high", "medium"):
-            liquid += float(a.get("value") or 0.0)
-
-    free_cf = float(metrics.get("free_cashflow") or 0.0)
-    return max(0.0, liquid + max(0.0, free_cf))
+def _capital_in(plan: FinancialPlan, currency: str) -> float:
+    return float(plan_available_capital(plan, currency).round().amount)
 
 
 def _min_priority_goal_horizon_months(profile: dict[str, Any]) -> int | None:
@@ -74,11 +67,15 @@ def evaluate_opportunities(
     profile: dict[str, Any],
     opportunities: list[InvestmentOpportunity],
     max_results: int = 3,
+    plan: FinancialPlan | None = None,
+    as_of: date | None = None,
 ) -> list[OpportunityMatch]:
     matches, _trace = evaluate_opportunities_with_trace(
         profile=profile,
         opportunities=opportunities,
         max_results=max_results,
+        plan=plan,
+        as_of=as_of,
     )
     return matches
 
@@ -88,15 +85,21 @@ def evaluate_opportunities_with_trace(
     profile: dict[str, Any],
     opportunities: list[InvestmentOpportunity],
     max_results: int = 3,
+    plan: FinancialPlan | None = None,
+    as_of: date | None = None,
 ) -> tuple[list[OpportunityMatch], DecisionTrace]:
-    metrics = compute_profile_metrics(profile)
-    available_capital = _estimate_available_capital(profile, metrics)
+    plan = plan or plan_for_profile(profile, as_of or date.today())
+    metrics = plan_metrics(plan)
+    base_currency = plan.base_currency
+    available_capital = float(plan_available_capital(plan, base_currency).round().amount)
     user_risk: RiskLevel = profile.get("risk_tolerance", "medium")
     goal_horizon = _min_priority_goal_horizon_months(profile)
-    constraints = detect_constraints(profile, metrics)
+    constraints = [constraint_to_dict(c) for c in plan.constraints]
 
     filters_applied = [
-        "minimum_capital <= estimated_available_capital",
+        "no blocking plan constraint in the instrument currency",
+        "instrument currency has a plan budget (no implicit conversion)",
+        "minimum_capital <= unassigned current balance after reserve, commitments, high-interest debt and goals",
         "instrument_risk_level <= profile_risk_tolerance",
         "liquidity_level compatible with high-priority goal horizon (if present)",
     ]
@@ -105,7 +108,11 @@ def evaluate_opportunities_with_trace(
     rejected: list[OpportunityRejection] = []
     for op in opportunities:
         reasons: list[str] = []
-        if op.minimum_capital > available_capital:
+        for blocking in plan.blocking_constraints(op.currency):
+            reasons.append(f"blocked_by_constraint:{blocking.constraint_id}")
+        if plan.budget(op.currency) is None:
+            reasons.append("no_budget_in_instrument_currency")
+        if op.minimum_capital > _capital_in(plan, op.currency):
             reasons.append("min_capital_exceeds_available_capital")
         if not _risk_allows(user_risk, op.risk_level):
             reasons.append("risk_exceeds_tolerance")
@@ -124,7 +131,8 @@ def evaluate_opportunities_with_trace(
 
     matches: list[OpportunityMatch] = []
     for op in eligible:
-        capital_score, capital_details = _capital_score(op, available_capital)
+        op_capital = _capital_in(plan, op.currency)
+        capital_score, capital_details = _capital_score(op, op_capital)
         risk_score, risk_details = _risk_score(user_risk, op.risk_level)
         liquidity_score, liquidity_details = _liquidity_score(op, goal_horizon)
         horizon_alignment_score, horizon_details = _horizon_alignment_score(op, profile, goal_horizon)
@@ -146,7 +154,7 @@ def evaluate_opportunities_with_trace(
         }
         match_reason = _build_match_reason(
             op=op,
-            available_capital=available_capital,
+            available_capital=op_capital,
             goal_horizon=goal_horizon,
             user_risk=user_risk,
             score_components=score_components,
@@ -190,7 +198,7 @@ def evaluate_opportunities_with_trace(
                 horizon_alignment_score=m.score_components["horizon_alignment_score"],
                 details={
                     "weights": weights,
-                    "available_capital": available_capital,
+                    "available_capital": _capital_in(plan, op.currency),
                     "goal_horizon_months": goal_horizon,
                     "minimum_capital": op.minimum_capital,
                     "user_risk_tolerance": user_risk,
@@ -218,6 +226,9 @@ def evaluate_opportunities_with_trace(
             "market_country": (profile.get("country") or "").upper() or None,
             "risk_tolerance": user_risk,
             "estimated_available_capital": available_capital,
+            "available_capital_currency": base_currency,
+            "plan_policy_version": plan.policy_version,
+            "plan_as_of": plan.as_of.isoformat(),
             "goal_horizon_months": goal_horizon,
             "cashflow": {"monthly_income": metrics["monthly_income"], "monthly_expenses": metrics["monthly_expenses"], "free_cashflow": metrics["free_cashflow"]},
             "constraints_detected": constraints,
@@ -328,5 +339,5 @@ def _selected_option_reason(matches: list[OpportunityMatch], breakdown: list[Sco
         return f"Selected {top.opportunity.instrument_id} as the highest scoring eligible opportunity."
     return (
         f"Selected {top.opportunity.instrument_name} ({top.opportunity.instrument_id}) because it has the highest total score "
-        f"({b.total_score:.2f}) after applying minimum capital, risk tolerance, and liquidity constraints."
+        f"({b.total_score:.2f}) after applying plan constraints, minimum capital, risk tolerance, and liquidity filters."
     )

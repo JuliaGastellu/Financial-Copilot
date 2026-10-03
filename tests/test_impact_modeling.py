@@ -35,10 +35,12 @@ def test_compute_profile_metrics_includes_debt_ratios():
         "preferences": {},
     }
     metrics = compute_profile_metrics(profile)
-    assert "debt_to_income_ratio" in metrics
-    assert "debt_service_ratio" in metrics
-    assert metrics["debt_to_income_ratio"] == 8000 / 5000
+    # Reemplacé debt_to_income_ratio (saldo / ingreso mensual comparado con umbrales de carga
+    # mensual) por una métrica con unidad explícita y sin umbral.
+    assert "debt_to_income_ratio" not in metrics
+    assert metrics["debt_balance_to_monthly_income"] == 8000 / 5000
     assert metrics["debt_service_ratio"] == 300 / 5000
+    assert metrics["metric_units"]["debt_service_ratio"] == "minimum_payments / monthly_income"
 
 
 def test_recommendations_include_decision_context_and_projected_impacts(test_client):
@@ -74,5 +76,10 @@ def test_recommendations_include_decision_context_and_projected_impacts(test_cli
         if rec["projected_impact"] is not None:
             pi = rec["projected_impact"]
             assert isinstance(pi, dict)
-            assert {"time_delta", "confidence", "explanation"}.issubset(set(pi.keys()))
+            # Sustituí time_delta y confidence por supuestos y datos faltantes del plan.
+            assert {"explanation", "assumptions", "missing_data"}.issubset(set(pi.keys()))
+            assert "confidence" not in pi
+        for goal in rec["impacted_goals"]:
+            assert "probability_of_success" not in goal
+            assert "confidence" not in goal
 

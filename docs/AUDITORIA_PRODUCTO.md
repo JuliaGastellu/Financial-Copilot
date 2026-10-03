@@ -79,6 +79,22 @@ Conservo los hallazgos anteriores como registro de la revisión. En esta etapa c
 
 Busqué en todo el historial local patrones habituales de claves (proveedor de modelos, nube, tokens de GitHub y claves privadas) y no obtuve coincidencias. No encontré motivos para rotar secretos. El commit con los binarios ya está en el remoto; si el repositorio es o fue público, evalúo una revisión del historial publicado, aunque los metadatos no indican contenido documental.
 
-Siguen pendientes los demás hallazgos P0 y P1, incluidos autenticación, aislamiento de documentos, cálculo de capital y presupuesto, Decimal y moneda, probabilidades heurísticas y el uso del modelo de lenguaje para decidir recomendaciones.
+En esa etapa quedaron pendientes autenticación, aislamiento de documentos, cálculo de capital y presupuesto, Decimal y moneda, probabilidades heurísticas y el uso del modelo de lenguaje para decidir recomendaciones.
 
 Después construí la imagen Docker sin errores y la levanté en modo offline: `/health` respondió 200 y el chequeo de salud quedó en `healthy`. Eso no resuelve la persistencia durable ni el uso de dos workers con almacenamiento local.
+
+## Estado tras la etapa de núcleo financiero
+
+Implementé `app/finance/` y conecté métricas, restricciones, recomendaciones y catálogo al mismo plan. Resuelvo así estos hallazgos:
+
+- **Capital disponible.** Uso una única estimación: el saldo actual de liquidez alta que queda libre después de compromisos, ahorros de metas, reserva, deuda de tasa alta y metas. No sumo ingresos futuros. Con el caso de la auditoría (7.000, 4.500, 8.000 y tres metas) obtengo capital libre 0: los 2.500 mensuales van a la reserva, a la que le faltan 5.500.
+- **Asignación conjunta.** Las metas comparten un presupuesto. Pruebo 90 combinaciones de saldo, reserva, compromisos y tamaño de metas, y en ninguna las metas reciben más de 2.500 por mes, ni más de lo que queda después de reserva y deuda. Las entradas del catálogo son alternativas sin importe sugerido.
+- **Decimal y moneda.** Cada importe tiene moneda. No sumo monedas sin una tasa con fecha y fuente vigentes. Redondeo hacia arriba los aportes requeridos y nunca asigno más que el presupuesto.
+- **Probabilidades y confianza.** Las eliminé de la API, de la UI y de las decisiones antiguas al leerlas. En su lugar muestro supuestos, datos faltantes y escenarios determinísticos.
+- **Restricciones.** Déficit, reserva incompleta, deuda de tasa alta, compromisos superiores al saldo, carga de deuda y faltantes de metas cambian la asignación o bloquean el catálogo. La tasa de ahorro baja sigue siendo informativa.
+- **Ratios de deuda.** Cada ratio declara su unidad. Ya no aplico umbrales de carga mensual al saldo total.
+- **Modelo de lenguaje.** Las acciones con importe salen siempre del plan. Solo acepto texto del modelo, aunque todavía puede agregar recomendaciones informativas.
+
+Al probar encontré y corregí dos errores: un 422 con NaN terminaba en 500 al serializar el valor recibido, y el aporte requerido de una división exacta podía quedar un centavo arriba. También corregí el guardado de perfiles con `target_date`, que fallaba al serializar fechas.
+
+Sigue pendiente lo demás: autenticación, aislamiento, persistencia durable, carga en la UI de los campos nuevos y revisión de la política por defecto con personas usuarias. La reserva de 3 meses y el umbral de 12% son políticas propias, no recomendaciones validadas.

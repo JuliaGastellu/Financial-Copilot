@@ -29,7 +29,8 @@ def test_opportunity_scoring_prefers_eligible_matches():
         "country": "US",
         "risk_tolerance": "low",
         "cashflow": {"monthly_income": 5000, "monthly_expenses": 3000},
-        "assets": [{"name": "Cash", "category": "cash", "value": 5000, "liquidity": "high"}],
+        # Cubre reserva (9000) y meta (6000); antes 5000 bastaba porque no descontaba la reserva.
+        "assets": [{"name": "Cash", "category": "cash", "value": 20000, "liquidity": "high"}],
         "liabilities": [],
         "goals": [{"name": "Emergency buffer", "target_amount": 6000, "horizon_months": 6, "priority": "high"}],
         "preferences": {"currency": "USD"},
@@ -47,7 +48,7 @@ def test_recommendations_endpoint_includes_opportunity_fields_when_available(tes
         "country": "US",
         "risk_tolerance": "medium",
         "cashflow": {"monthly_income": 7000, "monthly_expenses": 4500},
-        "assets": [{"name": "Cash", "category": "cash", "value": 8000, "liquidity": "high"}],
+        "assets": [{"name": "Cash", "category": "cash", "value": 50000, "liquidity": "high"}],
         "liabilities": [],
         "goals": [{"name": "Home down payment", "target_amount": 20000, "horizon_months": 18, "priority": "high"}],
         "preferences": {"currency": "USD"},
@@ -60,6 +61,7 @@ def test_recommendations_endpoint_includes_opportunity_fields_when_available(tes
     body = res.json()
     assert isinstance(body["recommendations"], list)
 
-    has_opportunity = any(isinstance(r, dict) and "opportunity" in r for r in body["recommendations"])
-    assert has_opportunity
+    opportunity_recs = [r for r in body["recommendations"] if r.get("opportunity") is not None]
+    assert opportunity_recs
+    assert all(r["allocation_kind"] == "alternative" and r["suggested_amount"] is None for r in opportunity_recs)
 

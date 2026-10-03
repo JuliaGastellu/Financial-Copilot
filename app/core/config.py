@@ -34,6 +34,7 @@ class Settings(BaseSettings):
     rate_limit_recommendations: str = "10/minute"
     rate_limit_ingest: str = "5/minute"
     rate_limit_query: str = "20/minute"
+    rate_limit_plans: str = "20/minute"
 
     def resolved_sqlite_path(self) -> Path:
         return self.sqlite_path or (self.data_dir / "app.db")

@@ -29,6 +29,11 @@
     return v.toLocaleString(undefined, { maximumFractionDigits: digits, minimumFractionDigits: digits });
   }
 
+  function formatMoney(m) {
+    if (!m || typeof m !== "object" || m.amount == null) return "—";
+    return formatCurrency(Number(m.amount), m.currency);
+  }
+
   function formatCurrency(v, currency) {
     if (typeof v !== "number" || Number.isNaN(v)) return "—";
     if (!currency) return formatNumber(v);
@@ -716,9 +721,12 @@
       : "";
 
     // Suggested amount — prominent callout instead of small badge
+    const amountLabel = rec.allocation_kind === "simultaneous" ? "Monthly, part of your plan" : "Suggested";
     const amountBlock = suggestion
-      ? `<div class="rec-amount-callout"><span class="rec-amount-label">Suggested</span> ${escapeHtml(suggestion)}</div>`
-      : "";
+      ? `<div class="rec-amount-callout"><span class="rec-amount-label">${escapeHtml(amountLabel)}</span> ${escapeHtml(suggestion)}</div>`
+      : rec.allocation_kind === "alternative"
+        ? `<div class="muted">Alternative option: choose at most one, only with unassigned balance.</div>`
+        : "";
 
     const opportunityBody = opportunity
       ? `
@@ -741,7 +749,7 @@
           <div class="rec-section-title">Impacted goals</div>
           <div class="rec-section-body table-wrap">
             <table>
-              <thead><tr><th>Goal</th><th>Priority</th><th>Time delta</th><th>Probability</th></tr></thead>
+              <thead><tr><th>Goal</th><th>Priority</th><th>Status</th><th>Monthly</th><th>Shortfall</th><th>Months to goal</th></tr></thead>
               <tbody>
                 ${impacted
                   .map(
@@ -749,8 +757,10 @@
                   <tr>
                     <td>${escapeHtml(g.goal_name || "")}</td>
                     <td>${escapeHtml(g.priority || "")}</td>
-                    <td>${escapeHtml(g.time_to_goal_change == null ? "—" : String(g.time_to_goal_change))}</td>
-                    <td>${escapeHtml(g.probability_of_success == null ? "—" : formatNumber(Number(g.probability_of_success), 2))}</td>
+                    <td>${escapeHtml(String(g.status || "—").replace(/_/g, " "))}</td>
+                    <td>${escapeHtml(formatMoney(g.monthly_allocation))}</td>
+                    <td>${escapeHtml(formatMoney(g.shortfall_monthly))}</td>
+                    <td>${escapeHtml(g.months_to_goal == null ? "—" : String(g.months_to_goal))}</td>
                   </tr>
                 `
                   )
@@ -772,8 +782,18 @@
         <div class="callout callout-accent">
           <div class="rec-section-title">Projected impact</div>
           <div class="rec-section-body">
-            <div class="muted">time_delta=${escapeHtml(projected.time_delta == null ? "—" : String(projected.time_delta))} · confidence=${escapeHtml(projected.confidence == null ? "—" : formatNumber(Number(projected.confidence), 2))}</div>
-            <div class="muted" style="margin-top:8px; white-space: pre-wrap;">${escapeHtml(projected.explanation || "")}</div>
+            <div class="muted" style="white-space: pre-wrap;">${escapeHtml(projected.explanation || "")}</div>
+            ${
+              Array.isArray(projected.missing_data) && projected.missing_data.length
+                ? `<div class="muted" style="margin-top:8px;">Missing data: ${escapeHtml(projected.missing_data.join(", "))}</div>`
+                : ""
+            }
+            ${
+              Array.isArray(projected.assumptions) && projected.assumptions.length
+                ? `<div class="muted" style="margin-top:8px;">Assumptions: ${escapeHtml(projected.assumptions.join(", "))}</div>`
+                : ""
+            }
+            <div class="muted" style="margin-top:8px;">Rule-based plan, not a forecast. Amounts assume no investment return.</div>
           </div>
         </div>
       `
@@ -1100,7 +1120,6 @@
       $("#queryAnswer").textContent = res.answer || "";
       renderKeyValues($("#queryMeta"), [
         { k: "mode", v: String(res.mode) },
-        { k: "confidence", v: formatNumber(Number(res.confidence), 2) },
         { k: "fallback_used", v: String(Boolean(res.fallback_used)) },
         { k: "fallback_reason", v: res.fallback_reason == null ? "—" : String(res.fallback_reason) },
       ]);

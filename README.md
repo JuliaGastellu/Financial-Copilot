@@ -6,11 +6,15 @@ Estoy desarrollando una herramienta para organizar ingresos, gastos, deudas y me
 
 Implementé una API FastAPI, perfiles e historial en SQLite, ingesta de texto y HTML, recuperación documental con Chroma, reglas financieras, comparación de un catálogo ilustrativo y una interfaz web. Mantengo pruebas automatizadas y un flujo de integración continua.
 
-Puedo ejecutar el prototipo sin clave de proveedor: uso representaciones de texto basadas en hash y respuestas extractivas. Cuando habilito el modelo de lenguaje, actualmente también puede generar recomendaciones. Por eso no presento todo el comportamiento como determinístico.
+Puedo ejecutar el prototipo sin clave de proveedor: uso representaciones de texto basadas en hash y respuestas extractivas.
+
+Implementé un núcleo financiero puro en `app/finance/`. Uso importes Decimal con moneda explícita y mantengo un presupuesto separado por moneda. Solo consolido monedas con una tasa que tenga fecha y fuente. El plan separa el saldo actual del excedente mensual y reparte cada uno una sola vez: primero la reserva de emergencia, después la deuda de tasa alta y por último las metas, por prioridad y plazo. Con la misma fecha y la misma política, el plan es reproducible. Expongo el plan en `GET /plans/{user_id}` con supuestos, datos faltantes y tres escenarios de ingreso y gasto. Los cambios de contrato están en [la migración de contratos](docs/MIGRACION_CONTRATOS.md).
+
+Cuando habilito el modelo de lenguaje, puede agregar recomendaciones de texto, pero no importes ni acciones del plan. Por eso no presento todas las respuestas como determinísticas.
 
 ## Límites actuales
 
-Todavía no implementé autenticación ni autorización por propietario. Los documentos comparten un índice global. Tengo que corregir estimaciones de capital, asignaciones a metas e indicadores de confianza. El catálogo es ilustrativo y no representa cotizaciones vigentes. No uso este prototipo para ejecutar operaciones ni ofrecer asesoramiento profesional.
+Todavía no implementé autenticación ni autorización por propietario. Los documentos comparten un índice global. El plan usa reglas y supuestos explícitos; no es un pronóstico y no calcula probabilidades. La interfaz todavía no permite cargar monedas por importe, compromisos ni meses de reserva, aunque la API los acepta. El catálogo es ilustrativo y no representa cotizaciones vigentes. No uso este prototipo para ejecutar operaciones ni ofrecer asesoramiento profesional.
 
 ## Ejecución local
 
@@ -57,7 +61,7 @@ Mantengo API en `app/main.py`, casos de uso en `app/services/`, contratos en `ap
 
 ## Verificación
 
-Ejecuto la suite con `python -m pytest -q`. El 3 de octubre de 2026 instalé `requirements-dev.lock` en un entorno limpio de Python 3.11 en Windows y obtuve 46 pruebas aprobadas. Ese mismo día construí la imagen Docker sin errores. Levanté un contenedor en modo offline con las variables de Compose: `/health` respondió 200, el chequeo de salud quedó en `healthy`, la aplicación creó SQLite y Chroma en `/app/data` y la imagen no incluía datos locales. No ejecuté la suite dentro del contenedor.
+Ejecuto la suite con `python -m pytest -q`. El 3 de octubre de 2026 instalé `requirements-dev.lock` en un entorno limpio de Python 3.11 en Windows y obtuve 46 pruebas aprobadas; después de implementar el núcleo financiero, la misma suite tiene 188 pruebas aprobadas. También verifiqué en el navegador, con un perfil ficticio, que la interfaz muestra el plan conjunto sin probabilidades. El 3 de octubre también construí la imagen Docker sin errores. Levanté un contenedor en modo offline con las variables de Compose: `/health` respondió 200, el chequeo de salud quedó en `healthy`, la aplicación creó SQLite y Chroma en `/app/data` y la imagen no incluía datos locales. No ejecuté la suite dentro del contenedor.
 
 Las pruebas de fragmentación ejecutan cada caso en un proceso aislado con tiempo máximo, para detectar bucles en el divisor alternativo.
 

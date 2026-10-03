@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI, HTTPException
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse
 from slowapi import Limiter, _rate_limit_exceeded_handler
@@ -24,6 +25,7 @@ from app.schemas.models import (
     HealthResponse,
     IngestDocumentRequest,
     IngestDocumentResponse,
+    PlanResponse,
     ProfileResponse,
     ProfileUpsertRequest,
     QueryRequest,
@@ -117,6 +119,12 @@ def create_app(settings_override: Settings | None = None) -> FastAPI:
     app.add_middleware(RequestIdMiddleware)
     app.mount("/static", StaticFiles(directory=str(ui_dir)), name="static")
 
+    @app.exception_handler(RequestValidationError)
+    async def validation_exception_handler(request: Request, exc: RequestValidationError) -> JSONResponse:
+        # No devuelvo el valor recibido: puede no ser serializable (NaN) o contener datos personales.
+        errors = [{"loc": list(e.get("loc", ())), "msg": e.get("msg"), "type": e.get("type")} for e in exc.errors()]
+        return JSONResponse(status_code=422, content={"detail": errors})
+
     @app.exception_handler(Exception)
     async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
         request_id = getattr(request.state, "request_id", "unknown")
@@ -157,7 +165,7 @@ def create_app(settings_override: Settings | None = None) -> FastAPI:
     @app.put("/profiles/{user_id}", response_model=ProfileResponse, tags=["profiles"])
     def upsert_profile(user_id: str, payload: ProfileUpsertRequest, request: Request) -> ProfileResponse:
         service: FinancialCopilotService = app.state.service
-        profile = payload.profile.model_dump()
+        profile = payload.profile.model_dump(mode="json")
         if profile.get("user_id") != user_id:
             raise HTTPException(status_code=400, detail="Path user_id must match profile.user_id.")
         service.upsert_profile(user_id=user_id, profile=profile, request_id=request.state.request_id)
@@ -205,7 +213,6 @@ def create_app(settings_override: Settings | None = None) -> FastAPI:
             answer=result.answer,
             recommendations=result.recommendations,
             citations=result.citations,
-            confidence=result.confidence,
             mode=result.mode,
             fallback_used=result.fallback_used,
             fallback_reason=result.fallback_reason,
@@ -229,6 +236,16 @@ def create_app(settings_override: Settings | None = None) -> FastAPI:
             mode=result.mode,
             decision_context=result.decision_context,
         )
+
+    @app.get("/plans/{user_id}", response_model=PlanResponse, tags=["plans"])
+    @_limit(app_settings.rate_limit_plans)
+    def get_plan(user_id: str, request: Request) -> PlanResponse:
+        service: FinancialCopilotService = app.state.service
+        try:
+            payload = service.plan(user_id=user_id, request_id=request.state.request_id)
+        except KeyError:
+            raise HTTPException(status_code=404, detail="Profile not found.")
+        return PlanResponse(**payload)
 
     @app.get("/opportunities", response_model=list[InvestmentOpportunity], tags=["opportunities"])
     def list_opportunities(

@@ -57,7 +57,7 @@ def test_query_can_suppress_recommendations(test_client):
 
     assert isinstance(body["answer"], str) and body["answer"].strip()
     assert isinstance(body["citations"], list)
-    assert isinstance(body["confidence"], (int, float))
+    assert "confidence" not in body
     assert isinstance(body["mode"], str)
     assert isinstance(body["fallback_used"], bool)
     assert body["fallback_reason"] is None or isinstance(body["fallback_reason"], str)

@@ -75,7 +75,8 @@ def test_recommendation_includes_decision_trace_and_components(test_client):
         "country": "US",
         "risk_tolerance": "medium",
         "cashflow": {"monthly_income": 7000, "monthly_expenses": 4500},
-        "assets": [{"name": "Cash", "category": "cash", "value": 8000, "liquidity": "high"}],
+        # Cubre reserva (13500) y meta (20000); antes 8000 bastaba porque no descontaba la reserva.
+        "assets": [{"name": "Cash", "category": "cash", "value": 50000, "liquidity": "high"}],
         "liabilities": [],
         "goals": [{"name": "Home down payment", "target_amount": 20000, "horizon_months": 18, "priority": "high"}],
         "preferences": {"currency": "USD"},
